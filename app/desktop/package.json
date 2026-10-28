@@ -28,5 +28,13 @@
   "dependencies": {
     "@napi-rs/keyring": "2.1.0",
     "electron-updater": "6.8.9"
+  },
+  "overrides": {
+    "node-gyp": {
+      "undici": "6.29.1"
+    },
+    "@electron/get": {
+      "undici": "7.30.1"
+    }
   }
 }
