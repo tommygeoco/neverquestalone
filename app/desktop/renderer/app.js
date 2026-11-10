@@ -575,9 +575,11 @@
   }
   /** The AIs with a row of their own (Claude, ChatGPT, Grok, Gemini), in the data file's order; hidden ones left out. */
   function cardAis() {
-    return (S.providers || []).filter(function (p) { return p && !p.hidden && p.auth === 'key' && p.display && p.display.card; })
+    return (S.providers || []).filter(function (p) { return p && !p.hidden && (p.auth === 'key' || p.auth === 'signin') && p.display && p.display.card; })
       .sort(function (a, b) { return (a.display.order || 0) - (b.display.order || 0); });
   }
+  /** A plan that signs in (ChatGPT plan): no key is pasted for it. */
+  function isSignin(id) { var p = providerById(id); return !!p && p.auth === 'signin'; }
   function otherShown() { var p = providerById('custom'); return !!p && !p.hidden; }
   function defaultModelOf(id) {
     var ms = modelsOf(id);
@@ -1553,7 +1555,8 @@
     var v = namesOf(pid);
     var R = function (k, x) { return T('ai.result.' + k, Object.assign({}, v, x || {})); };
     var P2 = function (label, fn, fk) { return { label: label, fn: fn, fk: fk || 'key-fix' }; };
-    var paste = function (label) { return P2(label || T('ai.pasteNewBtn'), function () { pasteKey(where); }, 'paste-key'); };
+    var paste = function (label) { return isSignin(pid) ? P2(T('ai.signInAgainBtn'), function () { signIn(pid, where); }, 'sign-in') : P2(label || T('ai.pasteNewBtn'), function () { pasteKey(where); }, 'paste-key'); };
+    var again = function () { return P2(T('ai.signInAgainBtn'), function () { signIn(pid, where); }, 'sign-in'); };
     var retry = function () { return P2(T('ai.testAgainBtn'), function () { return res.retest === 'saved' ? testSaved(pid, where) : retryKey(pid, where); }, 'test-again'); };
     // The fix is a web page: the primary opens it (an arrow out), and Test again is the quiet button.
     var webFix = function (label, fn, fk) { return { label: label, fn: fn, fk: fk, out: true }; };
@@ -1562,6 +1565,19 @@
     if (res.ok) {
       if (where === 'page') return { kind: 'ok', line: R('okLine', { ai: F.clean(res.ai || v.ai, 24) }), primary: null, focus: 'paste-key' };
       return { kind: 'ok', line: R('okLine', { ai: F.clean(res.ai || v.ai, 24) }), primary: P2(T('ai.continueBtn'), function () { afterConnect(where); }, 'continue'), focus: 'continue', connected: true };
+    }
+    if (isSignin(pid)) {
+      switch (res.error) {
+        case 'cancelled': return { kind: 'warn', line: R('signInCancelledLine'), primary: null, focus: 'sign-in' };
+        case 'port_busy': return { kind: 'warn', line: R('portBusyLine'), primary: again(), focus: 'sign-in' };
+        case 'browser_failed': return { kind: 'bad', line: R('browserFailedLine'), primary: again(), focus: 'sign-in' };
+        case 'timeout': return { kind: 'warn', line: R('signInTimeoutLine'), primary: again(), focus: 'sign-in' };
+        case 'sign_in_failed': case 'no_account': case 'no_refresh': return { kind: 'bad', line: R('signInFailedLine'), primary: again(), focus: 'sign-in' };
+        case 'oauth_expired': case 'auth_invalid': case 'saved_rejected': return { kind: 'bad', line: R('signInEndedLine'), primary: again(), focus: 'sign-in' };
+        case 'not_signed_in': case 'no_key': return { kind: 'warn', line: R('notSignedInLine'), primary: again(), focus: 'sign-in' };
+        case 'terms_required': return { kind: 'warn', line: R('termsRequiredLine'), primary: again(), focus: 'sign-in' };
+        default: break;
+      }
     }
     switch (res.error) {
       case 'clipboard_empty': return { kind: 'warn', line: R('clipboardEmptyLine'), primary: null, focus: 'paste-key' };
@@ -1728,6 +1744,21 @@
     });
   }
   /**
+   * Sign in with a plan (ChatGPT): main shows the dialog, then the bridge opens the player's browser
+   * at the company's sign-in page and waits for it; Cancel sign-in stops the wait.
+   */
+  function signIn(pid, where) {
+    var st = KS(where);
+    if (!st || st.busy) return Promise.resolve();
+    st.slot = null;
+    awaitAgree(st, 'signin', function () { return T('ai.signingInBtn'); });
+    rerender();
+    return B.signIn({ provider: pid }).then(function (res) {
+      doneWaiting(st);
+      return ensureProviders().then(refreshStatus).then(function () { showResult(res, where); });
+    });
+  }
+  /**
    * After ✓ connected: step 3. The old "Check your defaults" is gone: its defaults apply as they were
    * (the cheaper model, the privacy switches as they are, start at login on, notifications on, no
    * daily limit), each changeable on Your AI, Usage and Settings.
@@ -1835,6 +1866,7 @@
   /** A row's cost ("$0.17–0.37 a day"), or Other's line. */
   function costOf(pid) {
     if (isCustom(pid)) return customName() && isCustom((P().provider || {}).id) ? customName() : T('ai.otherCostLine');
+    if (isSignin(pid)) return T('ai.planCostLine');
     var day = dayOf(defaultModelOf(pid));
     return day ? T('ai.dayCostLine', { dayCost: day.text }) : '';
   }
@@ -1856,7 +1888,7 @@
           var chipNode = null;
           if (id === 'custom') chipNode = customOf() && cur && cur.id === 'custom' && aiReady() ? chip(T('ai.connectedChip'), 'ok') : null;
           else if (ok) chipNode = null; // the tick and the result line say it (APP-D-29)
-          else if (!(st.slot && st.pick === id) && k.saved) chipNode = rejectedKey(k) ? chip(T('ai.keyRejectedChip'), 'bad') : k.state === 'no_credit' ? chip(T('ai.noCreditChip'), 'warn') : chip(T('ai.keySavedChip'), 'ok');
+          else if (!(st.slot && st.pick === id) && k.saved) chipNode = rejectedKey(k) ? chip(isSignin(id) ? T('ai.signInAgainBtn') : T('ai.keyRejectedChip'), 'bad') : isSignin(id) ? chip(T('ai.signedInChip'), 'ok') : k.state === 'no_credit' ? chip(T('ai.noCreditChip'), 'warn') : chip(T('ai.keySavedChip'), 'ok');
           var cost = costOf(id);
           return h('button', { type: 'button', class: 'choice' + (checked ? ' is-checked' : ''), 'data-fk': 'card-' + id, id: 'choice-' + id },
             h('span', { class: 'choice-name' }, h('span', { class: 'choice-names' }, h('span', { class: 'choice-title', text: id === 'custom' ? F.clean(disp('custom').card || 'Other', 24) : aiName(id) })), chipNode),
@@ -1894,7 +1926,21 @@
     var main = null;
     var quietNode = null;
     var ghostNode = null;
-    if (isCustom(pid)) {
+    if (isSignin(pid) && !r) {
+      var signing = st.busy === 'signin';
+      if (signing) {
+        main = busyNow(primary(T('ai.signingInBtn'), null, { fk: 'sign-in' }));
+        quietNode = quiet(T('ai.cancelSignInBtn'), function () { B.cancelSignIn({ provider: pid }); }, { fk: 'cancel-sign-in' });
+      } else if (busyPaste) {
+        main = busyNow(primary(checkingText(st.checkingWith || pid), null, { fk: 'use-saved' }));
+      } else if (k.saved && !rejectedKey(k)) {
+        main = primary(T('ai.useSignInBtn'), function () { useSaved(pid, where); }, { fk: 'use-saved' });
+        quietNode = quiet(T('ai.signInAgainBtn'), function () { signIn(pid, where); }, { fk: 'sign-in' });
+      } else {
+        main = primary(PT(pid, 'signInBtn', v) || T('ai.signInBtn', v), function () { signIn(pid, where); }, { fk: 'sign-in' });
+        quietNode = btn(T('ai.plansBtn', v), openLink(pid + '.plans'), 'btn btn-quiet', { fk: 'open-plans', after: 'out' });
+      }
+    } else if (isCustom(pid)) {
       var customReady = customOf() && isCustom((P().provider || {}).id) && aiReady();
       main = customReady && where === 'ai'
         ? primary(T('ai.continueBtn'), function () { afterConnect(where); }, { fk: 'continue' })
@@ -1923,11 +1969,11 @@
     }
     if (agreeing && main) main.setAttribute('aria-disabled', 'true');
     // The AI company's own key page: one link, the same words for every AI (sign-up and credit start there).
-    if (!quietNode && !busyPaste && !isCustom(pid) && !(r && (r.connected || r.bare))) {
+    if (!quietNode && !busyPaste && !isCustom(pid) && !isSignin(pid) && !(r && (r.connected || r.bare))) {
       quietNode = btn(T('ai.getKeyBtn', v), openLink(pid + '.keys'), 'btn btn-quiet', { fk: 'open-keys', after: 'out' });
     }
     // No key yet? (onboarding critic ON-01): setup's step 2, before any key or result, opens the key's numbered steps.
-    if (where === 'ai' && (!r || NO_KEY_YET[st.slot && st.slot.error]) && !busyPaste && !ghostNode && !k.saved && !isCustom(pid) && !isLocal(pid)) {
+    if (where === 'ai' && (!r || NO_KEY_YET[st.slot && st.slot.error]) && !busyPaste && !ghostNode && !k.saved && !isCustom(pid) && !isLocal(pid) && !isSignin(pid)) {
       ghostNode = btn(T('ai.noKeyLink'), function () {
         st.noKey = !st.noKey;
         rerender(false, function () { focusAfter('no-key')(); var box = document.getElementById('no-key-box'); if (box) box.scrollIntoView({ block: 'nearest' }); });
@@ -2834,7 +2880,7 @@
    * Switch's actions for one that isn't. Main asks first ("Delete your Anthropic key?").
    */
   function deleteKeyBtn(pid, cls) {
-    return busyBtn(T('yourAi.deleteKeyBtn'), function () {
+    return busyBtn(isSignin(pid) ? T('yourAi.signOutBtn') : T('yourAi.deleteKeyBtn'), function () {
       return B.deleteKey({ provider: pid }).then(function () { return ensureProviders(); }).then(refreshStatus).then(function () { paintBanners(); rerender(); });
     }, cls, { fk: 'delete-key' });
   }
@@ -2980,11 +3026,14 @@
         }
         var test = busyBtn(Y('testKeyBtn'), retest, 'btn btn-quiet btn-sm', { fk: 'now-test' });
         var openReplace = function () { ya.replace = !ya.replace; rerender(false, function () { reveal('key-row', 'key-field'); }); };
-        var repl = custom ? small(Y('replaceKeyBtn'), function () { S.ya = { view: 'custom' }; rerender(true, function () { reveal('custom-form', 'custom-key'); }); }, { fk: 'key-' + cur.id })
+        var signedIn = isSignin(cur.id);
+        var repl = signedIn ? (rejected ? primary : small)(Y('signInAgainBtn'), function () { signIn(cur.id, 'page'); }, { fk: 'key-' + cur.id })
+          : custom ? small(Y('replaceKeyBtn'), function () { S.ya = { view: 'custom' }; rerender(true, function () { reveal('custom-form', 'custom-key'); }); }, { fk: 'key-' + cur.id })
           : (rejected ? primary : small)(Y('replaceKeyBtn'), openReplace, { fk: 'key-' + cur.id, 'aria-expanded': ya.replace ? 'true' : 'false', 'aria-controls': 'replace-box' });
-        keyRow = stackRow('key-row', Y('keyLabel'),
-          [h('span', { class: 'set-main key-main' }, data('span', { class: 'mono key-mask', text: F.clean(k.masked || '', 40) }), chipNode), ntLine],
-          h('div', { class: 'row' }, test, repl, k.saved ? deleteKeyBtn(cur.id, 'btn btn-quiet btn-sm btn-danger') : null), 'set-rec', ya.replace && !custom ? replaceBox(cur.id) : null);
+        if (signedIn) test = busyBtn(Y('testSignInBtn'), retest, 'btn btn-quiet btn-sm', { fk: 'now-test' });
+        keyRow = stackRow('key-row', signedIn ? Y('signInLabel') : Y('keyLabel'),
+          [h('span', { class: 'set-main key-main' }, signedIn ? h('span', { text: Y('signedInLine', { ai: aiName(cur.id) }) }) : data('span', { class: 'mono key-mask', text: F.clean(k.masked || '', 40) }), chipNode), ntLine],
+          h('div', { class: 'row' }, test, repl, k.saved ? deleteKeyBtn(cur.id, 'btn btn-quiet btn-sm btn-danger') : null), 'set-rec', ya.replace && !custom && !signedIn ? replaceBox(cur.id) : null);
       }
       // The model: the recommended one, the one in use and the cheapest; the rest one click away.
       var modelRow = null;

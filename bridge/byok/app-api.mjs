@@ -29,7 +29,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { BRIDGE_VERSION } from '../service.mjs';
 import { countSlots, SLOT_COUNT } from '../transport/slots.mjs';
-import { loadManifests, createProvider, pickProviderForKey, userLine, durWords, manifestFor, checkCustomUrl, customManifest, needsRestart, retiringOf, effortLevels, nearestEffort, startThinkRoom, THINK_ROOM, START_EFFORT, EFFORT_LEVELS, CUSTOM_ID, CUSTOM_MODEL_RE } from './providers/index.mjs';
+import { loadManifests, createProvider, pickProviderForKey, userLine, durWords, manifestFor, checkCustomUrl, customManifest, needsRestart, retiringOf, effortLevels, nearestEffort, startThinkRoom, THINK_ROOM, START_EFFORT, EFFORT_LEVELS, CUSTOM_ID, CUSTOM_MODEL_RE, isSignIn } from './providers/index.mjs';
+import { isAuthorizeUrl } from './signin/chatgpt.mjs';
 import { maskKey } from './security/keystore.mjs';
 import { redact } from './security/redact.mjs';
 import { CONNECTIONS_NOTE } from './security/egress.mjs';
@@ -297,6 +298,7 @@ export function createAppApi(opts = {}) {
     patchDay = () => null,
     screenReading = null, // boot's applyScreenReading: the capture helper alone starts or stops (never the core)
     configFile = null, // the app's config.json: where the install's one fold of the parts' row is recorded (C-119)
+    signIns = null, // boot's sign-ins (signin/index.mjs): a plan in place of a key (ChatGPT)
   } = opts;
   if (!config || typeof config !== 'object') throw new TypeError('createAppApi needs the config');
   if (!keystore) throw new TypeError('createAppApi needs the key store');
@@ -443,6 +445,8 @@ export function createAppApi(opts = {}) {
 
   function priceHint(m, e) {
     if (m.local) return { local: true };
+    // A plan (a sign-in): no charge per reply; its usage limits are the plan's.
+    if (isSignIn(m)) return { plan: true };
     // Another service's prices aren't known here: no cost is shown for it (§2 rule 8).
     if (isCustom(m)) return undefined;
     // With the thinking it does at its start level (SY-102-1: every AI bills it as output).
@@ -452,7 +456,7 @@ export function createAppApi(opts = {}) {
   // A day's dollars at each thinking level the model offers (CL-design-37): the typical turn with
   // that level's room, so Your AI's rows and the track's line follow the level picked.
   function levelDays(m, e) {
-    if (m.local || isCustom(m) || e.effort !== true) return undefined;
+    if (m.local || isCustom(m) || isSignIn(m) || e.effort !== true) return undefined;
     try {
       const price = priceBook.priceFor(m.id, e.id, now());
       return Object.fromEntries(effortLevels(m, e.id).map(l => [l, typicalCost(price, { thinkRoom: THINK_ROOM[l] ?? 0 }).dayUsd]));
@@ -485,11 +489,12 @@ export function createAppApi(opts = {}) {
     }
     const masked = masks.get(id);
     if (!masked) return { saved: false };
+    const signedIn = isSignIn(manifest(id));
     let state = 'ok';
     if (id === B().provider) { try { state = S.backend?.status?.()?.provider?.keyState ?? 'ok'; } catch { /* ok */ } }
     // A first key saved while its account had no credit (T1): saved, and says so until a test passes.
     if (B().keyState[id]?.state === 'no_credit' && (state === 'ok' || state === 'missing')) state = 'no_credit';
-    return { saved: true, masked, state };
+    return signedIn ? { saved: true, signedIn: true, state } : { saved: true, masked, state };
   }
 
   function linkId(m, kind) {
@@ -569,6 +574,9 @@ export function createAppApi(opts = {}) {
    */
   async function runTest(m, getKey, { saved, context = null }) {
     const provider = m.id;
+    // A plan's sign-in: its session's fresh token (and account header), whatever getKey was given.
+    const session = signIns?.for(m);
+    if (session) getKey = () => session.credentials();
     // Other's model is the one its manifest was built with (the service being connected, or the one in use).
     const model = (isCustom(m) ? m.models?.default : null) || (B().provider === provider && B().model) || m.models?.default || null;
     // Setup's test (onboarding spec §9.3): its own results, each with its fix (setupFailure).
@@ -585,7 +593,7 @@ export function createAppApi(opts = {}) {
       const t = await prov.testCall({ model, signal: AbortSignal.timeout(60_000) });
       if (!t.ok) return failure(t.error, m, model);
       let micros = 0;
-      try { micros = m.local ? 0 : costMicros(t.usage ?? {}, priceBook.priceFor(provider, model, now())); } catch { micros = 0; }
+      try { micros = m.local || m.priceSource === 'free' ? 0 : costMicros(t.usage ?? {}, priceBook.priceFor(provider, model, now())); } catch { micros = 0; }
       if (saved && B().provider === provider) {
         try { await S.backend?.refresh?.({ keyChanged: true }); } catch { /* status only */ }
         // What the player fixed at the provider (credit, a spend limit, a region) is fixed: the card goes (D-32, D-38).
@@ -937,7 +945,7 @@ export function createAppApi(opts = {}) {
           id: t.id,
           name: t.name,
           hidden: !!t.hidden,
-          auth: local ? 'local' : 'key',
+          auth: local ? 'local' : isSignIn(t) ? 'signin' : 'key',
           models: modelsOf(t),
           ...playerCard(t),
           terms: { link: linkId(t, local ? 'privacy' : 'terms'), recorded: termsOk(t) },
@@ -949,7 +957,7 @@ export function createAppApi(opts = {}) {
 
     async setKey(provider, key) {
       const m = visible(provider);
-      if (!m || m.local || isCustom(m)) return bad('provider'); // Other's key comes with its service (connectCustom)
+      if (!m || m.local || isCustom(m) || isSignIn(m)) return bad('provider'); // Other's key comes with its service (connectCustom); a plan signs in
       const k = typeof key === 'string' ? key.trim() : null;
       const problem = keyProblem(m, k);
       if (problem) return problem;
@@ -981,7 +989,7 @@ export function createAppApi(opts = {}) {
      */
     async testStagedKey(provider, getKey, o = {}) {
       const m = visible(provider);
-      if (!m || m.local || isCustom(m)) return bad('provider');
+      if (!m || m.local || isCustom(m) || isSignIn(m)) return bad('provider');
       // Nothing goes to an AI company before its terms are recorded (onboarding spec §9.3).
       if (!termsOk(m)) return { ok: false, error: 'terms_required' };
       let key = null;
@@ -998,6 +1006,7 @@ export function createAppApi(opts = {}) {
       const m = manifest(provider) ?? (provider === CUSTOM_ID ? manifests.find(isCustom) : null);
       if (!m || (m.local && !isCustom(m))) return bad('provider');
       try { await keystore.delete(provider); } catch (e) { return { ok: false, error: e.code || 'keystore_error' }; }
+      signIns?.for(m)?.signOut();
       masks.set(provider, null);
       delete B().authBy[provider];
       persist();
@@ -1064,7 +1073,7 @@ export function createAppApi(opts = {}) {
       // Saved as the level the model runs at: its nearest to the one asked for (a level picked for
       // another model), none for a model without levels, and none asked stays none (the model's own).
       const effort = v.effort == null ? null : nearestEffort(effortLevels(m, v.model), v.effort);
-      const auth = 'key';
+      const auth = isSignIn(m) ? 'oauth' : 'key';
       // Other's model is part of its service's settings: a new one is saved with them.
       const custom = isCustom(m) ? { baseUrl: m.baseUrl, model: v.model } : undefined;
       if (custom) B().custom = custom;
@@ -1619,7 +1628,7 @@ export function createAppApi(opts = {}) {
      */
     async connect(provider, key, o = {}) {
       const m = visible(provider);
-      if (!m || m.local || isCustom(m)) return bad('provider');
+      if (!m || m.local || isCustom(m) || isSignIn(m)) return bad('provider');
       const k = typeof key === 'string' ? key.trim() : null;
       const problem = keyProblem(m, k);
       if (problem) return problem;
@@ -1665,6 +1674,15 @@ export function createAppApi(opts = {}) {
       try { key = await keystore.get(provider); } catch { return { ok: false, error: 'read_failed' }; }
       if (!key) return { ok: false, error: 'no_key' };
       const t = await runTest(m, async () => key, { saved: true, context: 'setup' });
+      if (t?.ok === true && isSignIn(m)) {
+        if (B().provider !== provider) {
+          const want = m.models?.default;
+          const r = await api.choose({ provider, model: want, effort: startEffort(m, want) });
+          if (r?.ok !== true) return { ok: false, error: 'failed' };
+        }
+        changed();
+        return { ok: true, signedIn: true, testCall: t.testCall };
+      }
       if (t?.ok !== true) return t;
       if (B().provider !== provider) {
         const want = m.models?.default;
@@ -1673,6 +1691,62 @@ export function createAppApi(opts = {}) {
       }
       changed();
       return { ok: true, masked: maskKey(key), testCall: t.testCall };
+    },
+
+    /**
+     * Sign in with a plan (ChatGPT): the player's own browser opens the company's sign-in page (the
+     * shell's opener, which takes that page's URL only), a listener on 127.0.0.1 catches the redirect,
+     * the code becomes tokens, one tiny test request runs, and the plan becomes the AI in use. Its
+     * terms are recorded first (setup's dialog, recordTerms), as a key's are.
+     * → {ok, plan, model, testCall} | {ok:false, error: provider|terms_required|unsupported|
+     *   port_busy|browser_failed|cancelled|timeout|network|sign_in_failed|keystore_error|<a setup failure>}.
+     */
+    async signIn(provider) {
+      const m = visible(provider);
+      const session = m ? signIns?.for(m) : null;
+      if (!m || !session) return bad('provider');
+      if (!termsOk(m)) return { ok: false, error: 'terms_required' };
+      if (typeof openExternal !== 'function') return { ok: false, error: 'unsupported' };
+      const openUrl = async (url) => {
+        if (!isAuthorizeUrl(url)) throw new Error('not the sign-in page');
+        await openExternal(url);
+      };
+      // The sign-in service (the token exchange) and the plan's own host, for this one job.
+      const release = egress?.widen?.(m.hosts ?? [], 'sign_in') ?? (() => {});
+      let r;
+      try { r = await session.start({ openUrl }); } finally { release(); }
+      if (r?.ok !== true) { log('app-signin-failed', { provider: m.id, error: r?.error ?? 'failed' }); return r ?? { ok: false, error: 'failed' }; }
+      masks.set(m.id, 'signed-in');
+      B().authBy[m.id] = 'oauth';
+      delete B().keyState[m.id];
+      persist();
+      const t = await runTest(m, null, { saved: true, context: 'setup' });
+      if (t?.ok !== true) { changed(); return t; }
+      let model = B().provider === m.id ? B().model : null;
+      if (B().provider !== m.id) {
+        const want = m.models?.default;
+        const c = await api.choose({ provider: m.id, model: want, effort: startEffort(m, want) });
+        if (c?.ok !== true) { changed(); return { ok: false, error: 'failed', saved: true }; }
+        model = want;
+      } else {
+        B().auth = 'oauth';
+        try { await S.backend?.setConfig?.({ auth: 'oauth' }); } catch { /* refresh below */ }
+        persist();
+        try { await S.backend?.refresh?.({ keyChanged: true }); } catch { /* status only */ }
+      }
+      afterPassingTest();
+      changed();
+      log('app-signin', { provider: m.id, plan: r.plan ?? null });
+      return { ok: true, plan: r.plan ?? null, model: modelLabel(m, model), testCall: t.testCall };
+    },
+
+    /** Stop a sign-in waiting on the browser (the window's Cancel). */
+    async cancelSignIn(provider) {
+      const m = visible(provider);
+      const session = m ? signIns?.for(m) : null;
+      if (!session) return bad('provider');
+      session.cancel();
+      return { ok: true };
     },
 
     /** Setup's Install: the addon into the install the row shows (or the player's pick). */

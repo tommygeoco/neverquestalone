@@ -191,7 +191,7 @@ test('the welcome (a first run): what NeverQuestAlone does for your questing, hi
   assert.equal(titleText(set), 'Set up WoW');
 });
 
-test('step 2: five rows from the manifests (a name, its company, a day’s cost), Claude picked; the one line says what the picked AI needs (credit at its company, CL-player-29); one primary (Paste Anthropic key ⌘V), the AI company’s key page, Show details; no long text on the stage', async () => {
+test('step 2: six rows from the manifests (a name, its company, a day’s cost), Claude picked; the one line says what the picked AI needs (credit at its company, CL-player-29); one primary (Paste Anthropic key ⌘V), the AI company’s key page, Show details; no long text on the stage', async () => {
   const r = await pageRig({ onboarded: false });
   assert.equal(titleText(r), 'Connect your AI');
   assert.equal(r.document.querySelector('.pick-head .lead').textContent, 'Claude needs an API key and credit at Anthropic.', 'the AI is the subject (CL-words-65)');
@@ -200,12 +200,12 @@ test('step 2: five rows from the manifests (a name, its company, a day’s cost)
   assert.equal(group.getAttribute('role'), 'radiogroup');
   assert.equal(group.getAttribute('aria-label'), 'AI');
   const rows = group.querySelectorAll('.choice');
-  assert.deepEqual(rows.map(c => c.querySelector('.choice-title').textContent), ['Claude', 'ChatGPT', 'Grok', 'Gemini', 'Other']);
+  assert.deepEqual(rows.map(c => c.querySelector('.choice-title').textContent), ['Claude', 'ChatGPT', 'ChatGPT plan', 'Grok', 'Gemini', 'Other']);
   assert.equal(rows.filter(c => c.querySelector('.choice-maker')).length, 0, 'a row is its name and its cost: the company is on the button (the app trim)');
-  assert.deepEqual(rows.map(c => c.querySelector('.choice-cost').textContent), ['$0.76–1.22 a day', '$0.74–1.22 a day', '$0.62–1.00 a day', '$0.29–0.46 a day', 'Cost varies'], 'each AI\'s default (fix-102), from the price table');
+  assert.deepEqual(rows.map(c => c.querySelector('.choice-cost').textContent), ['$0.76–1.22 a day', '$0.74–1.22 a day', 'Included in your plan', '$0.62–1.00 a day', '$0.29–0.46 a day', 'Cost varies'], 'each AI\'s default (fix-102), from the price table; a plan has no price per reply');
   assert.ok(rows.every(c => c.getAttribute('role') === 'radio'));
-  assert.deepEqual(rows.map(c => c.getAttribute('aria-checked')), ['true', 'false', 'false', 'false', 'false'], 'Claude picked on a fresh run');
-  assert.deepEqual(rows.map(c => c.getAttribute('tabindex')), ['0', '-1', '-1', '-1', '-1'], 'a roving tab stop');
+  assert.deepEqual(rows.map(c => c.getAttribute('aria-checked')), ['true', 'false', 'false', 'false', 'false', 'false'], 'Claude picked on a fresh run');
+  assert.deepEqual(rows.map(c => c.getAttribute('tabindex')), ['0', '-1', '-1', '-1', '-1', '-1'], 'a roving tab stop');
   assert.equal(r.document.querySelector('.pick-head .label'), null, 'no column header: each cost says a day');
   assert.deepEqual(primaries(r).map(label), ['Paste Anthropic key']);
   const paste1 = fk(r, 'paste-key');
@@ -228,8 +228,14 @@ test('step 2: five rows from the manifests (a name, its company, a day’s cost)
   assert.deepEqual(primaries(r).map(label), ['Paste OpenAI key']);
   assert.ok(r.byText('Open OpenAI’s key page').length, 'one key link, the same words for every AI (player-29)');
   assert.equal(r.appState().setup.provider, 'openai', 'the pick is saved for a reopen');
+  // The ChatGPT plan signs in: its primary is Sign in with ChatGPT, its link the plans page; no key, no paste, no key steps.
+  await pick(r, 'chatgpt');
+  assert.deepEqual(primaries(r).map(label), ['Sign in with ChatGPT']);
+  assert.ok(r.byText('Open OpenAI’s plans').length, 'the plans page, in place of a key page');
+  assert.equal(r.document.querySelector('[data-fk="paste-key"]'), null, 'no key is pasted for a plan');
+  assert.equal(r.document.querySelector('[data-fk="no-key"]'), null, 'no key steps for a plan');
   const hid = await pageRig({ onboarded: false, state: { hidden: ['xai'] } });
-  assert.deepEqual(hid.document.querySelectorAll('.choice .choice-title').map(c => c.textContent), ['Claude', 'ChatGPT', 'Gemini', 'Other']);
+  assert.deepEqual(hid.document.querySelectorAll('.choice .choice-title').map(c => c.textContent), ['Claude', 'ChatGPT', 'ChatGPT plan', 'Gemini', 'Other']);
   const win = await pageRig({ onboarded: false, platform: 'win32' });
   assert.equal(fk(win, 'paste-key').querySelector('kbd').textContent, 'Ctrl+V');
   assert.equal(fk(win, 'paste-key').getAttribute('aria-keyshortcuts'), 'Control+V');

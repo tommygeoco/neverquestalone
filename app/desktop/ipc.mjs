@@ -47,6 +47,8 @@ export const PROVIDER_NAMES = Object.freeze(Object.fromEntries(MANIFESTS.map(m =
 const LOCAL_PROVIDERS = new Set(MANIFESTS.filter(m => m.local).map(m => m.id));
 /** Other (custom): the one AI whose key comes with its service's address (connectCustom), never by paste. */
 const CUSTOM_PROVIDERS = new Set(MANIFESTS.filter(m => m.custom === true).map(m => m.id));
+/** A plan that signs in (ChatGPT): no key is pasted for it, ever (signIn). */
+const SIGNIN_PROVIDERS = new Set(MANIFESTS.filter(m => typeof m.auth?.signIn === 'string').map(m => m.id));
 const PROVIDER_LINKS = providerLinks(MANIFESTS);
 /** A link whose URL is a template main fills from checked input ({hash}). */
 const isTemplate = url => url.includes('{hash}');
@@ -662,7 +664,7 @@ export const HANDLERS = {
       if (LOCAL_PROVIDERS.has(v.provider) || CUSTOM_PROVIDERS.has(v.provider)) return { ok: false, error: 'no_key_needed' };
       const p = (await listProviders(ctx)).find(x => x.id === v.provider);
       if (!p || p.hidden) return { ok: false, error: 'unknown_provider' };
-      if (!(isPlainObject(p.key) && p.key.saved)) return { ok: false, error: 'no_key' };
+      if (!(isPlainObject(p.key) && p.key.saved)) return { ok: false, error: SIGNIN_PROVIDERS.has(v.provider) ? 'not_signed_in' : 'no_key' };
       const names = aiNames(v.provider);
       return { termsRecorded: !!p.terms?.recorded, termsVersion: names.termsVersion, masked: cleanName(p.key.masked, 40), model: setupModel(p, v.provider) };
     },
@@ -690,10 +692,58 @@ export const HANDLERS = {
     run: (ctx, v) => { ctx.keys.drop(v.stageId); return { ok: true }; },
   },
   testKey: { input: obj({ provider: PROVIDER }), run: (ctx, v) => ctx.api.testKey(v.provider) },
+  /**
+   * Sign in with a plan (ChatGPT): the dialog (the terms, and a switch from the AI in use), then the
+   * bridge opens the player's browser at the company's sign-in page and waits for it (app-api signIn).
+   * No key passes through the page or this process's IPC.
+   */
+  signIn: {
+    input: obj({ provider: PROVIDER }),
+    announce: true, // the page hears when the browser opens (after Agree): ctx.onAgreed
+    prepare: async (ctx, v) => {
+      if (!SIGNIN_PROVIDERS.has(v.provider)) return { ok: false, error: 'unknown_provider' };
+      const p = (await listProviders(ctx)).find(x => x.id === v.provider);
+      if (!p || p.hidden) return { ok: false, error: 'unknown_provider' };
+      let current = null;
+      try {
+        const cur = providerOf(await ctx.api.status());
+        current = cur && cur.id && cur.id !== v.provider && (cur.keyState !== 'missing' || cur.auth === 'local') ? cur.id : null;
+      } catch { current = null; }
+      return { termsRecorded: !!p.terms?.recorded, termsVersion: aiNames(v.provider).termsVersion, current };
+    },
+    confirm: (ctx, v, prep) => {
+      const pf = ctx.platform;
+      const { ai, co } = aiNames(v.provider);
+      const vars = { ai, co, name: companionName(ctx), fromCo: prep.current ? aiNames(prep.current).co : '' };
+      return {
+        message: st('signInDialog.message', vars, pf),
+        detail: [st('signInDialog.body', vars, pf), prep.current ? st('signInDialog.switchLine', vars, pf) : null, prep.termsRecorded ? null : st('signInDialog.terms', vars, pf)].filter(Boolean).join('\n\n'),
+        okLabel: st(prep.termsRecorded ? 'signInDialog.okLabelTermsRecorded' : 'signInDialog.okLabel', vars, pf),
+        cancelLabel: st('pasteDialog.cancelLabel', vars, pf),
+      };
+    },
+    run: async (ctx, v, prep) => {
+      if (!prep.termsRecorded) await ctx.api.recordTerms(v.provider, prep.termsVersion);
+      const r = await ctx.api.signIn(v.provider);
+      const names = aiNames(v.provider);
+      if (r?.ok === true) return { ok: true, provider: v.provider, ...names, plan: cleanName(r.plan, 24) || null, model: cleanName(r.model) || null, testCall: isPlainObject(r.testCall) ? { micros: 0 } : null };
+      return { ok: false, error: typeof r?.error === 'string' ? r.error : 'failed', provider: v.provider, ...names };
+    },
+  },
+  /** Cancel a sign-in waiting on the browser. */
+  cancelSignIn: {
+    input: obj({ provider: PROVIDER }),
+    run: (ctx, v) => (SIGNIN_PROVIDERS.has(v.provider) ? ctx.api.cancelSignIn(v.provider) : { ok: false, error: 'unknown_provider' }),
+  },
   deleteKey: {
     input: obj({ provider: PROVIDER }),
     prepare: (ctx, v) => (LOCAL_PROVIDERS.has(v.provider) ? { ok: false, error: 'no_key_needed' } : {}),
-    confirm: (ctx, v) => ({
+    confirm: (ctx, v) => (SIGNIN_PROVIDERS.has(v.provider) ? {
+      message: `Sign out of your ${aiNames(v.provider).ai}?`,
+      detail: `Your sign-in is removed from ${storeName(ctx.platform)}. ${companionName(ctx)} can’t use your plan until you sign in again.`,
+      okLabel: 'Sign out',
+      destructive: true,
+    } : {
       message: `Delete your ${pname(v.provider)} key?`,
       detail: `It’s removed from ${storeName(ctx.platform)}. ${companionName(ctx)} can’t use ${pname(v.provider)} until you add a key again.`,
       okLabel: 'Delete key',

@@ -430,7 +430,7 @@ export function spendOf(sp, est = 0) {
  */
 export function createLocalBackend(handlers = {}, opts = {}) {
   const {
-    dataDir, keystore = null, log = () => {}, now = Date.now, random = Math.random,
+    dataDir, keystore = null, log = () => {}, now = Date.now, random = Math.random, signIns = null,
     providerOpts = {}, concurrency = CONCURRENCY, sleep = wait, deadline: deadlineAfter = ms => AbortSignal.timeout(ms),
   } = opts;
   if (!dataDir) throw new Error('createLocalBackend needs the data folder (dataDir)');
@@ -554,6 +554,9 @@ export function createLocalBackend(handlers = {}, opts = {}) {
     const provider = createProvider(manifest, {
       getKey: async (id) => {
         if (!keystore) return null;
+        // A plan's sign-in (ChatGPT): a fresh access token from its session, never the stored entry.
+        const session = signIns?.for(manifest);
+        if (session) return session.credentials();
         const key = await keystore.get(id);
         return key && settings.auth === 'oauth' ? { key, kind: 'oauth' } : key;
       },

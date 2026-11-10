@@ -128,9 +128,14 @@ test('refused: file: everywhere, every other scheme, host, port and look-alike, 
   assert.equal(checkShellRequest('devtools://devtools/x', { allowDevtools: true }).allow, true, 'devtools only when asked (unpackaged runs)');
 });
 
-test('no sign-in page opens anywhere (the OpenRouter sign-in is gone: OpenRouter connects through Other with a key), and a page never opens a window of its own', () => {
+test('the one sign-in page (ChatGPT plan) opens only in the player\'s own browser, through one checked opener; the OpenRouter sign-in stays gone; a page never opens a window of its own', () => {
   const main = code(fs.readFileSync(path.join(APP, 'main.mjs'), 'utf8'));
-  assert.doesNotMatch(main, /openSignInUrl|signInUrlOk|openExternal: /);
+  assert.doesNotMatch(main, /openSignInUrl|signInUrlOk/);
+  // The bridge's opener is main's openSignInPage alone, and it takes OpenAI's authorize page only.
+  assert.deepEqual([...main.matchAll(/openExternal: (\w+)/g)].map(m => m[1]), ['openSignInPage']);
+  assert.match(main, /const SIGN_IN_PAGES = Object\.freeze\(\['https:\/\/auth\.openai\.com\/oauth\/authorize'\]\);/);
+  assert.match(main, /async function openSignInPage\(url\) \{[\s\S]*?SIGN_IN_PAGES\.includes\(u\.origin \+ u\.pathname\)[\s\S]*?shell\.openExternal\(u\.href\)/);
+  assert.doesNotMatch(main, /loadURL\([^)]*auth\.openai/i, 'the sign-in page never loads in a window of ours');
   assert.doesNotMatch(main, /loadURL\([^)]*openrouter/i);
   assert.match(main, /setWindowOpenHandler\(\(\) => \(\{ action: 'deny' \}\)\)/, 'a page can never open a window of its own');
 });

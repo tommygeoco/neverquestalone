@@ -357,6 +357,18 @@ async function openLinkUrl(url) {
   return { ok: true };
 }
 
+// Sign in with a plan (ChatGPT; bridge/byok/signin): the bridge hands its sign-in page here, and only
+// that page opens, in the player's own browser (never in a window of ours). The bridge checked it
+// too (isAuthorizeUrl): the company's https origin, its authorize path, our callback on 127.0.0.1.
+const SIGN_IN_PAGES = Object.freeze(['https://auth.openai.com/oauth/authorize']);
+async function openSignInPage(url) {
+  let u;
+  try { u = new URL(url); } catch { throw new Error('bad_link'); }
+  if (u.protocol !== 'https:' || u.username || u.password || u.hash || !SIGN_IN_PAGES.includes(u.origin + u.pathname)) throw new Error('bad_link');
+  if (HEADLESS) return;
+  await shell.openExternal(u.href);
+}
+
 // The login item: macOS and Windows through Electron (src/login-item.mjs);
 // unsupported elsewhere (Linux runs from source only) and in dev runs.
 function getLoginItem() { return loginItem.get(); }
@@ -682,7 +694,7 @@ async function start() {
     // The holder serves one boot at a time and never a stopped one (fix-102): a boot stopped while
     // no quit is committed starts again at once, and the window's mode and reason follow each boot.
     live = createLiveApi({
-      boot: () => loadApi({ appDir: HERE, packaged: app.isPackaged, paths, log, selfTest: SELF_TEST }),
+      boot: () => loadApi({ appDir: HERE, packaged: app.isPackaged, paths, log, selfTest: SELF_TEST, openExternal: openSignInPage }),
       log: holderLog,
       onBoot: (l) => { loaded = l; apiLine(l); },
     });

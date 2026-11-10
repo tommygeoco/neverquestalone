@@ -59,6 +59,17 @@ export const STRINGS = {
     cancelLabel: 'Cancel',
   },
 
+  // Sign in with a plan (ChatGPT): the confirm before the browser opens. {ai} the card (ChatGPT plan),
+  // {co} its company (OpenAI), {name} the companion. The detail is the body, then the terms.
+  signInDialog: {
+    message: 'Sign in with your {ai}?',
+    body: 'Your browser opens {co}’s sign-in page. After you sign in, {name} sends one tiny test request and uses your plan for your messages, with no charge per reply. Replies count toward your plan’s usage limits.',
+    switchLine: 'Your messages go to {co} instead of {fromCo}.',
+    terms: 'Agreeing confirms you accept {co}’s terms of use.',
+    okLabel: 'Agree and sign in',
+    okLabelTermsRecorded: 'Sign in',
+  },
+
   // Other (custom): the confirm before the one test request to the player's own service. {host}
   // the service's address as the form gave it (openrouter.ai, localhost:11434), {url} its base URL,
   // {model} the model typed. The detail is the body, then (a service off this computer) the terms.

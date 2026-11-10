@@ -639,7 +639,7 @@ test('uninstall is confirm-gated and lists what goes', async () => {
 });
 
 test('the confirm-gated calls are exactly the risky ones, and only one dialog shows at a time', async () => {
-  assert.deepEqual([...CONFIRMED].sort(), ['choose', 'connectKey', 'deleteKey', 'forgetMemory', 'installAddon', 'installUpdateNow', 'pasteKey', 'setCaps', 'setRetention', 'connectCustom', 'tightenAddonPermissions', 'transcripts', 'uninstall', 'useSavedKey'].sort());
+  assert.deepEqual([...CONFIRMED].sort(), ['choose', 'connectKey', 'deleteKey', 'forgetMemory', 'installAddon', 'installUpdateNow', 'pasteKey', 'setCaps', 'setRetention', 'connectCustom', 'tightenAddonPermissions', 'transcripts', 'uninstall', 'useSavedKey', 'signIn'].sort());
   let release;
   const gate = new Promise(r => { release = r; });
   const { ipc, confirms } = makeCtx({ confirm: () => gate });
@@ -993,13 +993,13 @@ test('onAgreed: after Agree in a key’s or Other’s dialog (with the key’s A
   await saved.ctx.api.setKey('anthropic', `sk-ant-api03-CANARY${'x'.repeat(80)}`); // gitleaks:allow (a canary)
   await saved.ipc.call('useSavedKey', { provider: 'anthropic' });
   assert.deepEqual(said, [['useSavedKey', 'anthropic']]);
-  // Only these four calls say it: a plain setting never does.
+  // Only these five calls say it (signIn: after its dialog, as the browser opens): a plain setting never does.
   const others = makeCtx();
   const quiet = [];
   others.ctx.onAgreed = (...a) => quiet.push(a);
   await others.ipc.call('setPrivacy', { identity: true, otherNames: false, companion: false, echo: false, gameContext: true });
   assert.deepEqual(quiet, []);
-  assert.deepEqual(Object.entries(HANDLERS).filter(([, h]) => h.announce).map(([n]) => n).sort(), ['connectCustom', 'connectKey', 'pasteKey', 'useSavedKey']);
+  assert.deepEqual(Object.entries(HANDLERS).filter(([, h]) => h.announce).map(([n]) => n).sort(), ['connectCustom', 'connectKey', 'pasteKey', 'signIn', 'useSavedKey']);
   // Other's form: agreed after its dialog, with Other's id, before its one test request.
   const custom = makeCtx({ confirm: () => true });
   const heardCustom = [];

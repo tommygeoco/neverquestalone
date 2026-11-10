@@ -229,7 +229,7 @@ test('the self-test’s sandbox: the real bridge boots with capture off, no WoW 
     return { ...mod, bootByok: async (o) => { seen = o; return mod.bootByok(o); } };
   };
   const r = await selfTestBridge({ appDir: APP, paths, importer });
-  assert.deepEqual({ ...r, root: null }, { ok: true, root: null, state: 'no_key', bridge: 'wow_not_found', capture: 'no_game', providers: 5, slotWorker: { ok: true, state: 'running', written: 201, errors: 0, failed: [] } });
+  assert.deepEqual({ ...r, root: null }, { ok: true, root: null, state: 'no_key', bridge: 'wow_not_found', capture: 'no_game', providers: 6, slotWorker: { ok: true, state: 'running', written: 201, errors: 0, failed: [] } });
   assert.equal(seen.capture, false);
   assert.equal(seen.control, undefined, 'no control pipe to turn off (systems plan D6)');
   assert.equal(seen.egress, false);
@@ -264,7 +264,7 @@ test('the packaged self-test runs the app on the real bridge in that sandbox, ne
   assert.equal(out.mode, 'real');
   assert.equal(out.reason, 'self-test');
   assert.equal(out.api.mock, false);
-  assert.deepEqual({ ...out.report, root: null }, { ok: true, root: null, state: 'no_key', bridge: 'wow_not_found', capture: 'no_game', providers: 5, slotWorker: { ok: true, state: 'running', written: 201, errors: 0, failed: [] } });
+  assert.deepEqual({ ...out.report, root: null }, { ok: true, root: null, state: 'no_key', bridge: 'wow_not_found', capture: 'no_game', providers: 6, slotWorker: { ok: true, state: 'running', written: 201, errors: 0, failed: [] } });
   assert.equal(seen.capture, false, 'the sandbox wins over bootOptions');
   assert.equal(seen.egress, false);
   assert.equal(seen.keystore.backend, 'memory');
