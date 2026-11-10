@@ -2963,7 +2963,9 @@
     // Each record stacks its muted label over its value, as Connection's do (CL-design-47). Today's spend
     // that couldn't be read is a word, with no meter (BR-09, UX-W01).
     var todayRow = stackRow('today-row', U('todayLabel'), [t.unknown ? h('span', { class: 'set-main', text: U('todayUnknownValue') }) : data('span', { class: 'set-main', text: todayText }), t.capSet && !t.unknown ? xpBar(t.spent, t.cap) : null], null, 'set-rec');
-    var limit = local ? stackRow('limit-row', U('limitLabel'), h('span', { class: 'set-main', text: U('localLine') }), null, 'set-rec') : limitRow(cap);
+    // A plan (a sign-in) costs nothing per reply either: a dollar limit could never stop a reply.
+    var plan = !!(prov && isSignin(prov.id));
+    var limit = local || plan ? stackRow('limit-row', U('limitLabel'), h('span', { class: 'set-main', text: U(plan ? 'planLine' : 'localLine') }), null, 'set-rec') : limitRow(cap);
     return group(null, [todayRow, limit], 'spend-group');
   }
   PAGES.provider = function () {
@@ -3170,7 +3172,7 @@
         title: T('details.titleUsage'),
         sections: [
           { label: T('details.countedLabel'), body: T(today.exact && pn ? 'details.countedExactBody' : 'details.countedBody', { co: pn || '' }) },
-          local ? null : { label: T('details.limitLabel'), body: [T('details.limitBody', { name: companion() }), pn ? T('details.atCoBody', { co: pn }) : null, pn ? sheetLinkRow(T('common.openLimitsBtn', { co: pn }), openLink(prov.id + '.limits'), 'open-limits') : null].filter(Boolean) },
+          local || (prov && isSignin(prov.id)) ? null : { label: T('details.limitLabel'), body: [T('details.limitBody', { name: companion() }), pn ? T('details.atCoBody', { co: pn }) : null, pn ? sheetLinkRow(T('common.openLimitsBtn', { co: pn }), openLink(prov.id + '.limits'), 'open-limits') : null].filter(Boolean) },
         ],
       };
     };

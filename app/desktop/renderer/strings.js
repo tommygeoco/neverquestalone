@@ -675,6 +675,7 @@ window.BonesStrings = {
     offLine: 'Your daily limit is off.',
     badAmountLine: 'Type an amount from $0.01 to $100.',
     localLine: 'A model on this computer costs nothing.',
+    planLine: 'Your plan has no charge per reply.', // a plan that signs in (ChatGPT plan): its limits are the plan's, not dollars
     backToSetupBtn: 'Back to setup',
   },
 
