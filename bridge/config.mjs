@@ -26,7 +26,7 @@ export const DEFAULTS = {
   // provider/model/effort: Claude until setup connects an AI (no key: setup's first screen), effort
   // low (DB22): a WoW turn runs at it unless its chat has a /bones think of its own. custom: Other's
   // {baseUrl, model} (providers/index.mjs customManifest), set when provider is 'custom'. auth:
-  // always 'key' now (authBy per provider).
+  // 'key', or 'oauth' for a plan that signs in (ChatGPT plan; authBy per provider).
   // caps: the player's own daily spend cap (§9.4, DB8), none by default: the public build has no usage
   // limits of its own (maintainer, 2026-09-26; migrateByokCaps below, which adds v: 2; never here, or an old
   // section merged with the defaults would pass for a migrated one). privacy: DB14 / §13.1, the one place

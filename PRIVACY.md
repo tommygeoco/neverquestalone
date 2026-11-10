@@ -8,7 +8,7 @@ NeverQuestAlone runs on your computer and talks to the AI company you choose. Th
 - **Your messages go only to the AI you pick**, with your own character’s game data (on by default).
 - **Your name, realm and guild stay out** unless you turn them on. Other players’ names from the game are swapped for stand-ins.
 - **Other players’ chat is never read.**
-- **Your key and your chat history stay on your computer.** The key goes only to its own AI company.
+- **Your key and your chat history stay on your computer.** The key goes only to its own AI company. With a ChatGPT plan, your sign-in is kept the same way and goes only to OpenAI.
 - **You can see exactly what was sent:** the app’s Last request page shows the whole last request for each chat, with your key hidden.
 
 ## Everything that leaves your computer
@@ -67,6 +67,16 @@ These cards sum up each AI company’s own pages as read on **Sep 26, 2026**. AI
 - **What NeverQuestAlone sets:** `store: false` on every request, and a random install ID as the safety identifier (see the table above).
 - **Age:** OpenAI publishes guidance for apps that under-18s may use.
 - **Sources:** [Your data](https://developers.openai.com/api/docs/guides/your-data) · [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state) · [Under-18 guidance](https://developers.openai.com/api/docs/guides/safety-checks/under-18-api-guidance)
+
+### ChatGPT plan (signed in)
+
+With a ChatGPT plan, you sign in with your ChatGPT account instead of using an API key, and your messages go to OpenAI under your ChatGPT account, the way its Codex app’s do. The ChatGPT Terms of Use and your account’s data controls apply.
+
+- **Kept, and used for training:** what ChatGPT does for your account. Training follows your ChatGPT setting (Settings > Data controls > Improve the model for everyone).
+- **What NeverQuestAlone keeps:** your ChatGPT account’s ID and a sign-in token (the refresh token) in your macOS Keychain or Windows Credential Manager. The short-lived access token stays in the app’s memory. Signing out (Your AI > Sign out) deletes the saved sign-in.
+- **What NeverQuestAlone sets:** `store: false` on every request, and it names itself (`originator: neverquestalone`). It asks only for your basic profile when you sign in (`openid profile email offline_access`), never for access to your connectors.
+- **Where it connects:** `auth.openai.com` to sign in and renew the sign-in, and `chatgpt.com` for replies.
+- **Sources:** [Using your ChatGPT plan in other apps](https://help.openai.com/en/articles/11369540) · [Terms of Use](https://openai.com/policies/terms-of-use/) · [Privacy policy](https://openai.com/policies/privacy-policy/)
 
 ### xAI (Grok)
 

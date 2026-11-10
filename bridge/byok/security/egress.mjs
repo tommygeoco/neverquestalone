@@ -7,10 +7,10 @@
 //
 // One design, at the one door the bridge uses to reach the network: fetch. Boot hands the guarded
 // fetch to everything that talks to a provider (the backend's turns, key tests, the balance and
-// the model catalog, the OpenRouter sign-in's token exchange), and nothing in the bridge or the
+// the model catalog, the ChatGPT plan sign-in's token exchange and renewal), and nothing in the bridge or the
 // desktop app's main process opens a socket any other way: no module imports node:net, http,
 // https, tls, http2 or dgram except the few that only listen on or talk to this computer (the
-// OpenRouter sign-in's loopback listener and the capture helper's local socket), which
+// ChatGPT plan sign-in's loopback listener (bridge/byok/signin/chatgpt.mjs) and the capture helper's local socket), which
 // tests/byok/egress_test.mjs lists and checks. A child process, a worker
 // or a native addon could bypass it; the bridge ships none that talk to the network. This replaces
 // the process-wide socket hooks (diagnostics_channel, undici's beforeConnect, per-socket lookup),

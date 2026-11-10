@@ -151,7 +151,7 @@
     "sources": ["S37", "S32"]
   },
   "terms": {
-    "login": "API key only (DB6). No ChatGPT-plan login.",
+    "login": "API key only (DB6). A ChatGPT plan signs in through chatgpt.json (its own card, ChatGPT plan).",
     "notes": [
       "A high-confidence violation can block this install's safety_identifier for good.",
       "Region errors never suggest a VPN: access from unsupported regions may lead to blocking.",

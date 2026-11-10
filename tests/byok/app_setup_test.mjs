@@ -298,7 +298,7 @@ test('step 2, Show details: the sheet scoped to the AI picked (cost, your key, w
   assert.equal(active(r).getAttribute('data-fk'), 'details', 'focus back on Show details');
   assert.equal(r.document.getElementById('main-body').hasAttribute('inert'), false);
   // Scoped: Grok's has its note on refused requests; Gemini's the 18+ line; ChatGPT's credit first.
-  for (const [id, want] of [['xai', /xAI charges \$0\.05 for each request it refuses/], ['google', /18 or older/], ['openai', /Add \$5 of credit at OpenAI first/]]) {
+  for (const [id, want] of [['xai', /xAI charges \$0\.05 for each request it refuses/], ['google', /18 or older/], ['openai', /Add \$5 of credit at OpenAI first, or pick ChatGPT plan/], ['chatgpt', /Uses your ChatGPT plan .* instead of an API key/]]) {
     const s = await pageRig({ onboarded: false });
     await pick(s, id);
     await s.press(fk(s, 'details'));

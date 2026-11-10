@@ -4,7 +4,8 @@
 // place provider ids, names, key shapes, hosts and links live (providerIds,
 // providerLinks); a change to one ships with an app update.
 //
-// Setup offers five: Claude, ChatGPT, Grok, Gemini, and Other (custom.json, a template: any
+// Setup offers six: Claude, ChatGPT, ChatGPT plan (chatgpt.json: signs in with the player's ChatGPT
+// account instead of a key, auth.signIn, bridge/byok/signin), Grok, Gemini, and Other (custom.json, a template: any
 // OpenAI-compatible Chat Completions service at the player's own base URL, its key optional for a
 // server on this computer). The template becomes a manifest only with the player's settings
 // (customManifest; byok.custom {baseUrl, model}), and its one host is the only one it adds to the

@@ -1,6 +1,6 @@
 # How NeverQuestAlone works
 
-NeverQuestAlone is a quest companion for World of Warcraft®: Forever. It sits by your quest tracker, plans your quests, redraws your route on the map as you play and answers your questions in a window inside the game. It thinks with the AI you pick: through the NeverQuestAlone app with your own API key, or by Copy and Paste with any AI chat.
+NeverQuestAlone is a quest companion for World of Warcraft®: Forever. It sits by your quest tracker, plans your quests, redraws your route on the map as you play and answers your questions in a window inside the game. It thinks with the AI you pick: through the NeverQuestAlone app with your own API key or your ChatGPT plan, or by Copy and Paste with any AI chat.
 
 This page explains exactly what it does, what leaves your computer, and how to check all of it yourself.
 
@@ -87,6 +87,13 @@ Who can read it, honestly:
 | Someone reading a bug report you shared | No. Logs and diagnostics take keys out. |
 
 A stolen key works anywhere, so a spend limit at your AI company is the real backstop. The app links to each company’s limit settings.
+
+### Signing in with a ChatGPT plan
+
+- **Your password never touches the app.** You sign in on OpenAI’s own page, in your own browser. OpenAI sends the browser back to a listener the app opens on this computer only (`127.0.0.1`, port 1455 or 1457) while you sign in, and the app swaps what it gets for a sign-in token. It uses PKCE, so a code taken on the way is useless to anyone else.
+- **What’s saved:** your ChatGPT account’s ID and the sign-in token, where your keys are kept. The access token that goes with each request lasts minutes, lives only in the app’s memory, and is renewed with the sign-in token as it runs out.
+- **What it can do:** send messages to ChatGPT’s models under your plan’s usage limits. It isn’t your password, and the app never asks for access to your connectors.
+- **Signing out** (Your AI > Sign out) deletes the saved sign-in. You can also end every sign-in from your ChatGPT account’s security settings.
 
 ## What it costs
 

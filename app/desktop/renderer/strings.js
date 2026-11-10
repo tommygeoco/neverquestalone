@@ -250,7 +250,7 @@ window.BonesStrings = {
       createStep: 'Click Create key, then Copy.',
     },
     openai: {
-      subscription: 'A ChatGPT Plus or Pro subscription isn’t an API key. Add $5 of credit at OpenAI first.',
+      subscription: 'A ChatGPT Plus or Pro subscription isn’t an API key. Add $5 of credit at OpenAI first, or pick ChatGPT plan to sign in with your plan.',
       creditStep: 'Add $5 of credit, OpenAI’s minimum.',
       createStep: 'Click Create new secret key, then Copy.',
     },
