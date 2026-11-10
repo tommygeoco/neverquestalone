@@ -211,12 +211,53 @@ export function luaKeyShapedSource({ table = 'C' } = {}) {
 // Per-key list limits: the addon's own (PROTOCOL §2.6), so a forged state can't be longer than a real one.
 // Quests have none of their own (every quest in the log goes): QUEST_LIST_MAX is past what a state the
 // bridge takes can hold (12,000 bytes), so it bounds only a forged list.
-const LIST_MAX = { quests: QUEST_LIST_MAX, obj: 5, poi: 40, chainStarts: 3, prof: 6, gear: 19, pending: 10, omitted: 16, zones: 25, q: 6 };
+const LIST_MAX = { quests: QUEST_LIST_MAX, obj: 5, poi: 40, chainStarts: 3, prof: 6, gear: 19, pending: 10, omitted: 24, zones: 25, q: 6 };
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]{0,23}$/;
 // Keys that an object literal treats specially: `out.__proto__ = x` sets the prototype instead of
 // adding a key, so attacker data would be reachable by property access and hidden from JSON.
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const okKey = k => KEY_RE.test(k) && !UNSAFE_KEYS.has(k);
+
+// New optional game sections have explicit schemas: unknown keys (especially
+// player identities) never enter a prompt. Counts and IDs are whole numbers.
+const sectionObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const sectionInt = (v, min = 0, max = 2147483647) => Number.isInteger(v) && v >= min && v <= max ? v : undefined;
+const sectionText = v => typeof v === 'string' ? sanitizeGameString(v, GAME_STRING_MAX) : undefined;
+const sectionEnum = (v, values) => values.includes(v) ? v : undefined;
+const compactSection = fields => Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
+const sectionList = (v, cap, read) => Array.isArray(v) ? v.slice(0, cap).map(read).filter(v => v !== undefined) : undefined;
+const identitySection = (v, fields) => sectionObject(v) && sectionInt(v.id, 1) !== undefined
+  ? compactSection({ id: v.id, ...fields(v) }) : undefined;
+const GAME_SECTIONS = {
+  rewards: v => sectionList(v, 20, q => identitySection(q, q => ({
+    items: sectionList(q.items, 6, i => identitySection(i, i => ({ name: sectionText(i.name), quality: sectionInt(i.quality, 0, 8),
+      equipLoc: sectionText(i.equipLoc), ilvl: sectionInt(i.ilvl, 0, 10000), minLevel: sectionInt(i.minLevel, 0, 1000),
+      count: sectionInt(i.count, 1, 1000000), choice: typeof i.choice === 'boolean' ? i.choice : undefined }))),
+  }))),
+  durability: v => sectionList(v, 19, i => sectionObject(i) && sectionInt(i.slot, 1, 19) !== undefined && sectionInt(i.pct, 0, 100) !== undefined
+    ? { slot: i.slot, pct: i.pct } : undefined),
+  rested: v => sectionInt(v),
+  hearth: v => sectionObject(v) ? compactSection({ bind: sectionText(v.bind), left: sectionInt(v.left) }) : undefined,
+  talents: v => sectionList(v, 5, t => sectionObject(t) && sectionInt(t.tree, 1, 5) !== undefined
+    ? compactSection({ tree: t.tree, name: sectionText(t.name), points: sectionInt(t.points, 0, 1000) }) : undefined),
+  gear: v => sectionList(v, 19, i => identitySection(i, i => ({ slot: sectionInt(i.slot, 1, 19), name: sectionText(i.name),
+    ilvl: sectionInt(i.ilvl, 0, 10000), quality: sectionInt(i.quality, 0, 8), sell: sectionInt(i.sell) }))),
+  bags: v => sectionObject(v) ? compactSection({
+    free: sectionInt(v.free, 0, 1000), slots: sectionInt(v.slots, 0, 1000), partial: v.partial === true ? true : undefined,
+    items: sectionList(v.items, 32, i => identitySection(i, i => ({ name: sectionText(i.name), count: sectionInt(i.count, 1, 1000000),
+      kind: sectionEnum(i.kind, ['quest', 'foodDrink', 'potion', 'reagent']), quality: sectionInt(i.quality, 0, 8), sell: sectionInt(i.sell) }))),
+  }) : undefined,
+  auras: v => sectionList(v, 32, a => identitySection(a, a => ({ name: sectionText(a.name), kind: sectionEnum(a.kind, ['buff', 'debuff']),
+    count: sectionInt(a.count, 0, 1000000), duration: sectionInt(a.duration), left: sectionInt(a.left) }))),
+  rep: v => sectionList(v, 6, f => identitySection(f, f => ({ name: sectionText(f.name), standing: sectionInt(f.standing, 1, 8),
+    min: sectionInt(f.min, -2147483647), max: sectionInt(f.max, -2147483647), value: sectionInt(f.value, -2147483647), watched: f.watched === true ? true : undefined }))),
+  target: v => sectionObject(v) ? compactSection({ name: sectionText(v.name), level: sectionInt(v.level, -1, 1000),
+    classification: sectionEnum(v.classification, ['normal', 'elite', 'rareelite', 'worldboss', 'rare', 'minus', 'trivial']), reaction: sectionInt(v.reaction, 1, 8) }) : undefined,
+  group: v => sectionObject(v) ? compactSection({ size: sectionInt(v.size, 1, 40), members: sectionList(v.members, 40, m => sectionObject(m) ? compactSection({
+    class: sectionEnum(m.class, ['WARRIOR', 'PALADIN', 'HUNTER', 'ROGUE', 'PRIEST', 'DEATHKNIGHT', 'SHAMAN', 'MAGE', 'WARLOCK', 'MONK', 'DRUID', 'DEMONHUNTER', 'EVOKER']),
+    level: sectionInt(m.level, 0, 1000), role: sectionEnum(m.role, ['TANK', 'HEALER', 'DAMAGER']),
+  }) : undefined) }) : undefined,
+};
 
 /**
  * A copy of a game state (or recap, or any game JSON) that's safe to put in a prompt: every string
@@ -225,7 +266,17 @@ const okKey = k => KEY_RE.test(k) && !UNSAFE_KEYS.has(k);
  * quest list at QUEST_LIST_MAX, past any real state), at most 6 levels and 40 keys an object.
  */
 export function sanitizeState(value, { max = GAME_STRING_MAX, depth = 6 } = {}) {
+  // Schemas are a fixed bounded shape; still honor callers' smaller depth
+  // and string budgets without applying generic 25-entry list limits again.
+  const boundSection = (v, d) => {
+    if (typeof v === 'string') return capCodePoints(v, Math.min(max, GAME_STRING_MAX)).trim();
+    if (!v || typeof v !== 'object') return v;
+    if (d <= 0) return undefined;
+    if (Array.isArray(v)) return v.map(x => boundSection(x, d - 1)).filter(x => x !== undefined);
+    return compactSection(Object.fromEntries(Object.entries(v).map(([k, x]) => [k, boundSection(x, d - 1)])));
+  };
   const walk = (v, d, key) => {
+    if (d > 0 && Object.hasOwn(GAME_SECTIONS, key)) return boundSection(GAME_SECTIONS[key](v), d);
     if (v === null) return null;
     if (typeof v === 'string') return sanitizeGameString(v, max);
     if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;

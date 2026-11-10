@@ -838,9 +838,9 @@ test('Your AI (spec §6.3): the AI (Change), the key (masked, a chip in words, T
   assert.deepEqual(primaries(r).map(label), [], 'no primary');
   // The app trim: the model is one row (which, at what thinking level, what it costs a day: one whole string, all data;
   // CL-words-78, CL-player-58), its day's cost on one line (CL-design-54); Pick a model opens the lists, behind a click.
-  assert.equal(r.document.getElementById('model-sum').querySelector('.set-main').textContent, 'Claude Haiku 4.5 · Thinking: Low · $0.38–0.61 a day');
+  assert.equal(r.document.getElementById('model-sum').querySelector('.set-main').textContent, 'Claude Haiku 4.5 · Thinking: Low · $0.39–0.67 a day');
   assert.equal(r.document.getElementById('model-sum').querySelector('.set-main').getAttribute('data-count'), 'data');
-  assert.deepEqual(r.document.querySelectorAll('#model-sum .nowrap').map(e => e.textContent), ['$0.38–0.61 a day'], 'the price and its “a day” never split');
+  assert.deepEqual(r.document.querySelectorAll('#model-sum .nowrap').map(e => e.textContent), ['$0.39–0.67 a day'], 'the price and its “a day” never split');
   assert.equal(r.document.getElementById('model-row'), null, 'the list is behind Pick a model');
   assert.equal(r.document.getElementById('effort-row'), null, 'so is Thinking');
   const pickModel = fk(r, 'model-change');
@@ -856,12 +856,12 @@ test('Your AI (spec §6.3): the AI (Change), the key (masked, a chip in words, T
   // (CL-words-35), each with its cost a day at the level in use (CL-design-37); the rest one click away.
   const opts = () => r.document.querySelectorAll('#model-row [role="radio"]');
   const tags = () => opts().map(o => [o.querySelector('.choice-title').textContent, (o.querySelector('.chip') || {}).textContent || null, o.querySelector('.choice-cost').textContent]);
-  assert.deepEqual(tags(), [['Claude Sonnet 5.5', 'Recommended', '$0.76–1.22 a day'], ['Claude Haiku 4.5', 'Cheapest', '$0.38–0.61 a day']]);
+  assert.deepEqual(tags(), [['Claude Sonnet 5.5', 'Recommended', '$0.77–1.34 a day'], ['Claude Haiku 4.5', 'Cheapest', '$0.39–0.67 a day']]);
   assert.equal(opts()[1].getAttribute('aria-checked'), 'true', 'the saved Haiku 4.5');
   const all = fk(r, 'all-models');
   assert.deepEqual([label(all), all.getAttribute('aria-expanded')], ['Show all models', 'false']);
   await r.press(all);
-  assert.deepEqual(tags(), [['Claude Sonnet 5.5', 'Recommended', '$0.76–1.22 a day'], ['Claude Opus 5.5', 'Smartest', '$1.47–2.44 a day'], ['Claude Haiku 4.5', 'Cheapest', '$0.38–0.61 a day'], ['Claude Fable 5.1', null, '$3.61–6.10 a day'], ['Claude Sonnet 5', 'Older', '$0.76–1.22 a day']], 'every model by name: the tagged ones, the rest cheapest first, Older last (CL-words-35, CL-design-46)');
+  assert.deepEqual(tags(), [['Claude Sonnet 5.5', 'Recommended', '$0.77–1.34 a day'], ['Claude Opus 5.5', 'Smartest', '$1.48–2.68 a day'], ['Claude Haiku 4.5', 'Cheapest', '$0.39–0.67 a day'], ['Claude Fable 5.1', null, '$3.63–6.70 a day'], ['Claude Sonnet 5', 'Older', '$0.77–1.34 a day']], 'every model by name: the tagged ones, the rest cheapest first, Older last (CL-words-35, CL-design-46)');
   assert.ok(fk(r, 'all-models').querySelector('.ico-chevron'), 'a disclosure, as Show raw request (CL-design-45)');
   assert.deepEqual([label(fk(r, 'all-models')), fk(r, 'all-models').getAttribute('aria-expanded')], ['Show fewer models', 'true'], 'a button names its object; never a second Hide models (CL-words-78)');
   assert.equal(active(r).getAttribute('data-fk'), 'all-models', 'focus stays on the toggle');
@@ -872,7 +872,7 @@ test('Your AI (spec §6.3): the AI (Change), the key (masked, a chip in words, T
   assert.equal(r.document.getElementById('effort-xhigh').textContent, 'Extra high');
   assert.equal(r.document.querySelector('#effort-xhigh .opt-short'), null);
   assert.match(r.document.querySelector('#effort-row .seg').className, /\bseg-row\b/, 'one row');
-  assert.equal(r.document.querySelector('#effort-row .seg-note').textContent, 'Low: $0.38–0.61 a day.', 'the cost, and nothing explaining it');
+  assert.equal(r.document.querySelector('#effort-row .seg-note').textContent, 'Low: $0.39–0.67 a day.', 'the cost, and nothing explaining it');
   assert.equal(r.document.querySelector('#model-row select'), null, 'a list for any number of models, never a select');
   await r.press(opts()[1]);
   assert.deepEqual(r.calls.filter(c => c[0] === 'choose').at(-1)[1], { provider: 'anthropic', model: 'claude-opus-5-5', effort: 'low' }, 'saved on change, at the nearest level to the one in use');
@@ -885,7 +885,7 @@ test('Your AI (spec §6.3): the AI (Change), the key (masked, a chip in words, T
   // The rows and the line follow the level (CL-design-37): Extra high costs more than Low.
   assert.match(r.document.querySelector('#effort-row .seg-note').textContent, /^Extra high: \$\d+\.\d\d–\d+\.\d\d a day\./);
   const xhOpus = r.document.querySelector('#model-claude-opus-5-5 .choice-cost').textContent;
-  assert.notEqual(xhOpus, '$1.47–2.44 a day', 'Opus at Extra high, not at Low');
+  assert.notEqual(xhOpus, '$1.48–2.68 a day', 'Opus at Extra high, not at Low');
   assert.ok(r.document.querySelector('#effort-row .seg-note').textContent.includes(xhOpus.replace(' a day', '')), 'the line and the row agree');
   // Test key: the result under the key, with its cost; focus stays on the button.
   await r.press(fk(r, 'now-test'));

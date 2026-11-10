@@ -2013,7 +2013,8 @@ function U.Build()
 		local chat = ns.Chats.Active()
 		-- [UX-4] the provider's word for it: effort
 		local say = chat and select(3, U.HeaderParts(chat)) or nil
-		ShowTip(self, { title = "Thinking", text = "How hard NeverQuestAlone thinks in this chat: Low is quicker, High is slower and deeper.", actions = { "Click to change it" }, note = say }) -- [UX-W19]
+		local models = #U.ModelChoices() > 0
+		ShowTip(self, { title = models and "Model" or "Thinking", text = models and "Choose the AI model for this chat. Your choice starts with your next message." or "How hard NeverQuestAlone thinks in this chat: Low is quicker, High is slower and deeper.", actions = { "Click to change it" }, note = say }) -- [UX-W19]
 	end)
 	think:SetScript("OnLeave", HideTip)
 	ui.thinkBtn = think
@@ -3539,10 +3540,37 @@ function U.HeaderText(chat) -- [UX-4] the model and its effort
 	return note and (base .. " |cff9d9d9d(" .. note .. ")|r") or base
 end
 
--- Click the header: each thinking level this chat's model offers, cheapest
--- first (Off only where the model can answer without thinking), or the
--- bridge's default (/bones think).
-function U.ThinkMenu(anchor)
+-- The app's supported model choices. Older apps omit this optional list.
+function U.ModelChoices()
+	local p, out, seen = ns.Provider(), {}, {}
+	if not ns.HasCap("model") or not p or type(p.models) ~= "table" then return out end
+	for i = 1, math.min(#p.models, 24) do
+		local m = p.models[i]
+		local id = type(m) == "table" and m.id
+		if type(id) == "string" and #id <= 80 and id:match("^[%w%._:/%-]+$") and not ns.Chats.KeyShaped(id) and not seen[id] then
+			seen[id] = true
+			out[#out + 1] = { id = id, label = ns.Escape(ns.Str(m.label, 60) or id) }
+		end
+	end
+	return out
+end
+
+function U.ModelMenu(anchor, choices)
+	local items = {}
+	local function Add(label, id)
+		items[#items + 1] = { label, function() if ns.HandleCommand then ns.HandleCommand("model " .. id) end end }
+	end
+	Add("Default (" .. (ns.ModelName() or "App") .. ")", "default")
+	for _, m in ipairs(choices) do Add(m.label, m.id) end
+	if not U.NoEffort(ns.Chats.Active()) then
+		items[#items + 1] = { "Thinking...", function() U.ThinkMenu(anchor, true) end }
+	end
+	U.PopupMenu(anchor, "Model for This Chat", items)
+end
+
+function U.ThinkMenu(anchor, thinkingOnly)
+	local choices = U.ModelChoices()
+	if not thinkingOnly and #choices > 0 then return U.ModelMenu(anchor, choices) end
 	local function Set(level)
 		if ns.HandleCommand then ns.HandleCommand("think " .. level) end
 	end
@@ -3690,15 +3718,14 @@ function U.RenderWindowStatus(chat)
 		-- Thinking levels are the app's: by Copy and Paste the menu would change nothing.
 		local paste = ns.Paste and ns.Paste.On()
 		ui.header:SetText(paste and "" or U.HeaderText(chat))
-		local menu = not paste and not U.NoEffort(chat) -- [UX-4, C-17] nor on a model with no effort control
+		local menu = not paste and (#U.ModelChoices() > 0 or not U.NoEffort(chat))
 		ui.thinkArrow:SetShown(menu)
 		ui.thinkBtn:SetShown(menu)
 	end
 	if ui.chatName and chat then ui.chatName:SetText(ns.Escape(chat.name or "")) end
-	-- [UX-4, C-17] No effort control on this model: no menu (above), and
-	-- the header takes the arrow's place (re-anchored only when that changes).
-	if ui.thinkBtn and U.NoEffort(chat) ~= (ui.headerAlone == true) then
-		local alone = U.NoEffort(chat)
+	-- Without a model list or effort control, the header takes the arrow's place.
+	local alone = #U.ModelChoices() == 0 and U.NoEffort(chat)
+	if ui.thinkBtn and alone ~= (ui.headerAlone == true) then
 		ui.headerAlone = alone
 		ui.header:ClearAllPoints()
 		if alone then ui.header:SetPoint("RIGHT", ui.ctx, "RIGHT", 0, 0) else ui.header:SetPoint("RIGHT", ui.thinkArrow, "LEFT", -3, 0) end

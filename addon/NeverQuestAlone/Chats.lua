@@ -556,6 +556,10 @@ function C.ApplyRecord(chat, r, replay)
 		local usage = C.CleanUsage(r.usage) -- [UX-3] nil when the bridge didn't report it
 		C.AddHistory(chat, { role = "assistant", text = text, summary = summary, more = more, mid = type(r.mid) == "string" and r.mid or nil,
 			agent = type(r.agent) == "string" and r.agent or nil, chips = C.CleanChips(r.chips), refs = C.CleanRefs(r.refs), drew = drew, usage = usage })
+		-- A voice companion's exchange (voice = 1, odd/tasks/nqa-voice.md T7) was already spoken
+		-- by the realtime voice, so the game's TTS doesn't say it a second time.
+		local spokenByVoice = r.voice == 1 or r.voice == true
+		if not replay and not spokenByVoice and ns.Companion then ns.Companion.Call("SpeakSummary", summary) end
 		if usage and usage.model and not replay then C.ConfirmModel(chat, usage.model) end
 		if type(r.weights) == "table" then C.SaveWeights(r.weights) end
 		-- [G2, G4] The Quality of Life step waits for a later UI session than

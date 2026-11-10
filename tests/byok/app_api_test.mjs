@@ -145,9 +145,9 @@ test('status and providers have the mock API\'s shape, and never carry a key', a
   // fix-102: Claude's whole lineup, newest first with the default (Sonnet 5.5) at the top; Opus 5.5 the
   // smarter one, tagged Smartest in the full list (CL-words-35).
   assert.deepEqual(an.models.map(x => [x.id, x.tier]), [['claude-sonnet-5-5', 'default'], ['claude-opus-5-5', 'smarter'], ['claude-fable-5-1', 'other'], ['claude-sonnet-5', 'other'], ['claude-haiku-4-5', 'other']]);
-  assert.deepEqual(an.models[0].priceHint, { replyCents: [1.9, 3.05], dayUsd: [0.76, 1.22], at: 40, think: 1024 }, 'PRD §7.3\'s typical turn on Sonnet 5.5 (the prompt pack as its prefix, BR-18), from the bundled prices, with half of Low\'s thinking room (SY-102-1)');
-  assert.deepEqual(an.models.find(x => x.id === 'claude-haiku-4-5').priceHint, { replyCents: [0.95, 1.52], dayUsd: [0.38, 0.61], at: 40, think: 1024 }, 'every model its own cost line (Haiku 4.5 starts at Low too: a 2,048 budget)');
-  assert.deepEqual(an.models.find(x => x.id === 'claude-fable-5-1').priceHint, { replyCents: [9.03, 15.25], dayUsd: [3.61, 6.1], at: 40, think: 1024 });
+  assert.deepEqual(an.models[0].priceHint, { replyCents: [1.93, 3.35], dayUsd: [0.77, 1.34], at: 40, think: 1024 }, 'PRD §7.3\'s typical turn on Sonnet 5.5 (the prompt pack as its prefix, BR-18), from the bundled prices, with half of Low\'s thinking room (SY-102-1)');
+  assert.deepEqual(an.models.find(x => x.id === 'claude-haiku-4-5').priceHint, { replyCents: [0.97, 1.68], dayUsd: [0.39, 0.67], at: 40, think: 1024 }, 'every model its own cost line (Haiku 4.5 starts at Low too: a 2,048 budget)');
+  assert.deepEqual(an.models.find(x => x.id === 'claude-fable-5-1').priceHint, { replyCents: [9.07, 16.76], dayUsd: [3.63, 6.7], at: 40, think: 1024 });
   // A day at each level (CL-design-37): Low is the start level's figure; Off prices no thinking; Max the most.
   const son = an.models[0];
   assert.deepEqual(son.levelDays.low, son.priceHint.dayUsd, 'Low is the start level\'s day');

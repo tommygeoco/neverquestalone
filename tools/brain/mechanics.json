@@ -1,0 +1,16 @@
+{
+  "_about": "Reviewed boss abilities for the brain (odd/tasks/nqa-brain.md S1): each entry names its source page, the page's update date and the day it was read. Spell texts are Wowhead Forever tooltips by id. Add a boss only from a source read for it.",
+  "3654": {
+    "name": "Mutanus the Devourer",
+    "source": "wowhead-guide",
+    "url": "https://www.wowhead.com/forever/guide/wailing-caverns-dungeon-overview-location-rewards",
+    "updated": "2026-10-27",
+    "read": "2026-11-09",
+    "abilities": [
+      { "spell": 8150, "name": "Thundercrack", "text": "Instant. Inflicts 475 Nature damage to nearby enemies, stunning them for 2.5 sec." },
+      { "spell": 7399, "name": "Terrify", "text": "Melee range, instant. Terrifies an enemy, causing it to flee in fear for 4 sec. Only 1 target at a time." },
+      { "spell": 7967, "name": "Naralex's Nightmare", "text": "30 yd range, 2 sec cast. Puts the target to sleep for up to 15 sec; any hostile action wakes it. Only one target at a time." }
+    ],
+    "advice": "Appears after the Disciple's event. Two crowd controls; Thundercrack hits nearby targets hard (bad for melee). Bring ranged damage and a second healer if you can; healers stay at max range."
+  }
+}

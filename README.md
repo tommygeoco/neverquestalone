@@ -10,6 +10,8 @@
 
 ## What it does
 
+This contribution branch also contains optional source-mode voice controls, a local sourced-knowledge layer and a personal subscription CLI proxy. These features are a review proposal, not a new signed desktop release. See [Voice and local knowledge](docs/VOICE-LOCAL-KNOWLEDGE.md) for setup, limits and verification.
+
 - **Your next stop is always on screen.** How far it is, and what to do when you get there.
 - **Your map always shows the best route.** Every stop in your quest log, in the best order, on the map and minimap.
 - **Ask when you’re stuck.** Type a question in game and get a waypoint or clear directions.

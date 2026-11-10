@@ -202,7 +202,7 @@ test('step 2: five rows from the manifests (a name, its company, a day’s cost)
   const rows = group.querySelectorAll('.choice');
   assert.deepEqual(rows.map(c => c.querySelector('.choice-title').textContent), ['Claude', 'ChatGPT', 'Grok', 'Gemini', 'Other']);
   assert.equal(rows.filter(c => c.querySelector('.choice-maker')).length, 0, 'a row is its name and its cost: the company is on the button (the app trim)');
-  assert.deepEqual(rows.map(c => c.querySelector('.choice-cost').textContent), ['$0.76–1.22 a day', '$0.74–1.22 a day', '$0.62–1.00 a day', '$0.29–0.46 a day', 'Cost varies'], 'each AI\'s default (fix-102), from the price table');
+  assert.deepEqual(rows.map(c => c.querySelector('.choice-cost').textContent), ['$0.77–1.34 a day', '$0.74–1.34 a day', '$0.65–1.12 a day', '$0.29–0.50 a day', 'Cost varies'], 'each AI\'s default (fix-102), from the price table');
   assert.ok(rows.every(c => c.getAttribute('role') === 'radio'));
   assert.deepEqual(rows.map(c => c.getAttribute('aria-checked')), ['true', 'false', 'false', 'false', 'false'], 'Claude picked on a fresh run');
   assert.deepEqual(rows.map(c => c.getAttribute('tabindex')), ['0', '-1', '-1', '-1', '-1'], 'a roving tab stop');

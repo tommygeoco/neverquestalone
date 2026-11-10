@@ -38,6 +38,17 @@ export function personaName(name) {
 
 export { estimateTokens };
 
+/** The compact pack for a typed question the local brain found facts for (chat-pack.md, written by
+ * hand): the truth rules and the reply's blocks, a tenth of the full pack, so the answer starts sooner. */
+let chatPackText = null;
+export function loadChatPack({ persona = {} } = {}) {
+  chatPackText ??= fs.readFileSync(new URL('./chat-pack.md', import.meta.url), 'utf8');
+  const name = personaName(persona?.name);
+  const text = chatPackText.split('{{name}}').join(name);
+  const version = crypto.createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 16);
+  return { version, text, name, tokens: estimateTokens(text), compact: true };
+}
+
 /** loadPack({persona: {name}}) → { version, text, name, tokens } */
 export function loadPack({ persona = {} } = {}) {
   const name = personaName(persona?.name);

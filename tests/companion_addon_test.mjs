@@ -110,7 +110,7 @@ test('state (F1): the JSON in key order with 5.1-safe numbers and cleaned string
   const json = vm.evaluate('NS.Companion.Build().json');
   const s = JSON.parse(json);
   assert.equal(JSON.stringify(s), json, 'canonical JSON: no spaces, whole numbers without .0');
-  assert.deepEqual(Object.keys(s), ['v', 'sid', 'seq', 't', 'char', 'loc', 'questCount', 'questMax', 'quests', 'prof', 'pending', 'omitted'], 'no poi or gear when the client has none');
+  assert.deepEqual(Object.keys(s), ['v', 'sid', 'seq', 't', 'char', 'loc', 'questCount', 'questMax', 'quests', 'prof', 'pending', 'talents', 'omitted'], 'no poi or gear when the client has none (talents: the stub has points; T18)');
   assert.deepEqual({ ...s, t: 0 }, {
     v: 1, sid: SID, seq: 1, t: 0,
     char: { name: 'Tavi', realm: 'Testrealm', class: 'SHAMAN', race: 'Tauren', level: 7, xp: 300, xpMax: 1400, money: 11800 },
@@ -121,7 +121,9 @@ test('state (F1): the JSON in key order with 5.1-safe numbers and cleaned string
       { id: 761, title: 'Swoop Hunting', level: 8, trivial: true, complete: true, obj: [{ text: 'Trophy Swoop Quill', have: 8, need: 8 }] },
     ],
     prof: [{ name: 'Skinning', rank: 75, max: 75 }, { name: 'First Aid', rank: 40, max: 75 }],
-    pending: [], omitted: [],
+    pending: [],
+    talents: [{ tree: 1, name: 'Beast Mastery', points: 10 }, { tree: 2, name: 'Marksmanship', points: 5 }, { tree: 3, name: 'Survival', points: 0 }],
+    omitted: [],
   });
   assert.ok(validateState(json).ok, 'the bridge accepts it');
   vm.advance(30);
@@ -168,7 +170,8 @@ const PENDING10 = Array.from({ length: 10 }, (_, i) => `{ pid = ${i + 1}, kind =
 // The fit's steps in order (Companion.lua DROP_ORDER): detail (the objectives of quests ready to
 // turn in first), then professions and milestones (they wait for the next state), then the end of
 // titles, titles last.
-const LADDER = ['gear', 'poi', 'quests.obj.done', 'quests.obj.text', 'quests.obj', 'quests.level', 'prof', 'pending', 'quests.title.short', 'quests.title.tiny', 'quests.title'];
+// T18's sections go first when they're there (Companion.lua DROP_ORDER).
+const LADDER = ['rewards', 'rested', 'hearth', 'talents', 'durability', 'gear', 'poi', 'quests.obj.done', 'quests.obj.text', 'quests.obj', 'quests.level', 'prof', 'pending', 'quests.title.short', 'quests.title.tiny', 'quests.title'];
 // Past what any client's log holds: n quests.
 const LOG = n => `for i = 31, ${n} do STUB.log[i] = { id = 1000 + i, title = "Die unerträglich lange Questreihe Ñandú Ωmega Teil " .. i, level = 10, complete = false, trivial = false, objectives = {} } end`;
 
@@ -825,7 +828,8 @@ test('state, deflated (cap z): with z in the bridge\'s caps the state goes as ba
   assert.ok(validateState(back.text).ok);
   // The band at the top of the screen: this state alone, as it goes after each hello.
   const [before, after] = [rowsOf(plain), rowsOf(zvm)];
-  assert.ok(before >= 35 && after <= 18, `${before} rows plain, ${after} deflated`);
+  // Deflated, it takes half the rows or fewer (18 before T18's sections, 19 with them).
+  assert.ok(before >= 35 && after <= Math.ceil(before / 2), `${before} rows plain, ${after} deflated`);
   // With a message: the msg first and the deflated state beside it, one frame.
   zvm.advance(9);
   zvm.run('STUB.money = 800');

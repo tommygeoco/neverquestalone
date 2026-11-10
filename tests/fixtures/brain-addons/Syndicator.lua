@@ -1,0 +1,1 @@
+﻿SYNDICATOR_DATA = { Characters = { ["Tester-PvE"] = { details = { character = "Tester", class = 7, level = 22 }, bags = {{{itemID = 123, itemCount = 3}}}, bank = {{itemID = 456, itemCount = 2}} } }, Guilds = { Other = { bank = {{itemID = 999, itemCount = 8}} } } }

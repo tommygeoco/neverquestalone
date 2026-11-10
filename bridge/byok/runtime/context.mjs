@@ -56,7 +56,7 @@ export const DATA_MAX_CHARS = 10000;
 export const TAG = 'game_data';
 /** The addon's "about my target" line (Commands.lua QuickAsk): the target's name, then its description when there is one. */
 export const TARGET_ASK_RE = /What do you know about my target: (.+?)(?: \([^()]*\))?\?/;
-const EVENT_KINDS = new Set(['level_up', 'route_done', 'route_stale', 'zone_first']);
+const EVENT_KINDS = new Set(['level_up', 'route_done', 'route_stale', 'zone_first', 'bags_full', 'gear_breaking']);
 const LOCALE_RE = /^[a-z]{2}[A-Z]{2}$/; // a client locale as GetLocale() names it: deDE
 
 export { estimateTokens, encodeData, LINKED_MARK, DATAMARK };
@@ -378,6 +378,8 @@ export function buildRequest({
   const out = {};
   if (isObj(g.state)) out.state = sanitizeState(g.state);
   if (g.context) out.context = sanitizeLines(g.context, { maxLine: 240, maxLines: 12, questLine: true });
+  // The local brain's sourced facts for this question (odd/tasks/nqa-brain.md B6): "[source] text" lines.
+  if (g.facts) out.facts = sanitizeLines(g.facts, { maxLine: 1800, maxLines: 14 }); // a dungeon's bosses and gear fit one line
   const links = linked.length ? linked : Array.isArray(g.linked) ? g.linked.slice(0, 8) : [];
   if (links.length) out.linked = sanitizeState(links, { max: 200 });
   const isEvent = !!(isObj(g.event) && EVENT_KINDS.has(g.event.kind));
