@@ -224,7 +224,7 @@ test('bridge v2: game state and events: caps in the slot, st= waits for its stat
     bridge.handlePayload(rec('hello', { ver: '1.2.0', ctx: 0 }));
     await waitFor(() => (readSlot(env).bridge.caps || []).includes('qlog'), LIVE, 'caps in the slot');
     // The bridge's, then the backend's own (provider, usage, ekind, model).
-    assert.deepEqual(readSlot(env).bridge.caps, ['state', 'evt', 'think', 'z', 'ctx', 'qlog', 'provider', 'usage', 'ekind', 'model']);
+    assert.deepEqual(readSlot(env).bridge.caps, ['state', 'evt', 'think', 'z', 'ctx', 'qlog', 'voice', 'provider', 'usage', 'ekind', 'model']);
     // A level-up that names state 1 before the state arrives: it waits for it.
     const before = sends(mock).length;
     bridge.handlePayload(evt('level_up', { from: 7, to: 8, st: 1 }));
@@ -436,9 +436,9 @@ test('bridge v2 (cap z): a deflated state is kept as the exact JSON: the same st
 });
 
 test('bridge v2 (cap z): transport.deflate false leaves z out of the caps, so the addon sends the state as JSON', () => {
-  assert.deepEqual(makeBridge(setup(), null).buildSlot().bridge.caps, ['state', 'evt', 'think', 'z', 'ctx', 'qlog']);
+  assert.deepEqual(makeBridge(setup(), null).buildSlot().bridge.caps, ['state', 'evt', 'think', 'z', 'ctx', 'qlog', 'voice']);
   const off = makeBridge(setup(), null, { config: { transport: { slots: 3, deflate: false } } });
-  assert.deepEqual(off.buildSlot().bridge.caps, ['state', 'evt', 'think', 'ctx', 'qlog']);
+  assert.deepEqual(off.buildSlot().bridge.caps, ['state', 'evt', 'think', 'ctx', 'qlog', 'voice']);
 });
 
 // The game context from the state (cap ctx, PROTOCOL §2.6).

@@ -84,7 +84,7 @@ test('the state: questCount 40 and questMax 40 before the list; every quest with
     assert.ok(typeof q.title === 'string' && q.title.length > 0 && !q.cut, `${q.id}: its whole title`);
   }
   assert.deepEqual(s.quests.at(-1), { id: 1527, title: 'Call of Fire', level: 20, trivial: false, complete: true });
-  assert.deepEqual(s.omitted, ['quests.obj.done'], 'the objectives of quests ready to turn in go first (all done); the others keep their texts');
+  assert.deepEqual(s.omitted, ['talents', 'quests.obj.done'], 'optional talents go before completed objectives; the others keep their texts');
   assert.ok(s.quests.filter(q => !q.complete).every(q => q.obj.length && q.obj.every(o => typeof o.text === 'string')), 'objective texts of the quests in progress');
   assert.ok(Buffer.byteLength(st.json) > 2800 && Buffer.byteLength(st.json) <= STATE_JSON_MAX, `${Buffer.byteLength(st.json)} bytes of JSON`);
   // The vector the bridge tests send (tests/fixtures/protocol-v2.json fullLogState).
@@ -179,16 +179,24 @@ test('a quest under a collapsed header (listed by C_QuestLog.GetInfo, as on WoW:
   for (const [label, pre] of [['out of combat', ''], ['in a fight', IN_COMBAT], ['the quest log on screen', ON_SCREEN]]) {
     const vm = vmWith(FULL);
     vm.advance(4); // past the hello
-    const seq0 = build(vm).seq;
+    const initial = build(vm);
+    // T18 deliberately stops reading talents in combat. Enter combat before measuring
+    // header folding: that transition changes omitted, but folding must change nothing.
+    vm.run(pre);
+    const before = build(vm);
+    assert.deepEqual(before.state.quests, initial.state.quests, `${label}: entering combat does not change the quest log`);
+    assert.deepEqual(before.state.omitted, label === 'in a fight' ? ['quests.obj.done'] : ['talents', 'quests.obj.done'], label);
+    assert.equal(before.seq, initial.seq + (label === 'in a fight' ? 1 : 0), `${label}: only the combat transition changes the state`);
     // The player folds three zones (the game fires QUEST_LOG_UPDATE): nothing in the log changed.
-    vm.run(`STUB.collapsed["Mulgore"] = true; STUB.collapsed["The Barrens"] = true; STUB.collapsed["Shaman"] = true; ${pre}; STUB.FireEvent("QUEST_LOG_UPDATE")`);
+    vm.run('STUB.collapsed["Mulgore"] = true; STUB.collapsed["The Barrens"] = true; STUB.collapsed["Shaman"] = true; STUB.FireEvent("QUEST_LOG_UPDATE")');
     vm.advance(3);
     const st = build(vm);
     const s = st.state;
     assert.deepEqual(s.quests.map(q => q.id), ids(FULL), `${label}: every quest, in log order`);
     assert.deepEqual(s.quests.at(-1), { id: 1527, title: 'Call of Fire', level: 20, trivial: false, complete: true }, label);
     assert.deepEqual([s.questCount, s.questMax, 'questUnread' in s, 'questUnreadHeaders' in s], [40, 40, false, false], label);
-    assert.equal(st.seq, seq0, `${label}: the same state, no new seq`);
+    assert.equal(st.seq, before.seq, `${label}: the same state, no new seq`);
+    assert.equal(st.json, before.json, `${label}: folding headers leaves the entire state unchanged`);
     assert.equal(questLogLine(s), 'Quest log: 40 of 40 quests (the log is full), every one listed.', label);
     const ctx = vm.evaluate('NS.Chats.GameContext()');
     assert.match(ctx, /\nQuest log \(id, \* = ready to turn in\): 40 of 40 quests, all listed: [\d*,]+,1527\*$/, label);
@@ -350,7 +358,7 @@ test('the byte budget: 40 quests of 60-byte titles and 5 objectives of 60-byte t
     assert.equal(back.text, st.json, kind);
     assert.ok(validateState(back.text).ok, kind);
     assert.equal(fillTitles(s, []).state.quests.length, 40, `${kind}: the bridge keeps all 40`);
-    if (kind === 'words') assert.deepEqual(s.omitted, ['gear', 'poi', 'quests.obj.done', 'quests.obj.text'], 'words: objective counts kept');
+    if (kind === 'words') assert.deepEqual(s.omitted, ['talents', 'gear', 'poi', 'quests.obj.done', 'quests.obj.text'], 'words: objective counts kept');
     // Professions and milestones go before any title is cut (the breaker's r2 case 3): words and CJK
     // keep every title whole; only random ASCII (which doesn't deflate) cuts them, to 24 bytes.
     if (kind !== 'random') assert.ok(!titled && s.quests.every(q => !q.cut), `${kind}: every title whole`);
@@ -387,7 +395,7 @@ test('the byte budget, deflate off (the breaker\'s case b): 40 quests with 10 mi
   const p = build(vm);
   assert.equal(p.tooLarge, null);
   assert.ok(Buffer.byteLength(p.json) <= 3100, `${Buffer.byteLength(p.json)}`);
-  assert.deepEqual(p.state.omitted, ['gear', 'poi', 'quests.obj.done', 'quests.obj.text', 'quests.obj', 'quests.level', 'prof', 'pending', 'quests.title.short', 'quests.title.tiny']);
+  assert.deepEqual(p.state.omitted, ['talents', 'gear', 'poi', 'quests.obj.done', 'quests.obj.text', 'quests.obj', 'quests.level', 'prof', 'pending', 'quests.title.short', 'quests.title.tiny']);
   assert.ok(p.state.quests.every(q => Buffer.byteLength(q.title) === 12 && q.cut === true), 'every title, 12 bytes of it');
   assert.equal('pending' in p.state, false);
   // The milestones weren't in it, so the bridge confirming it doesn't clear them.

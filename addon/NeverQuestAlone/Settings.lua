@@ -171,6 +171,14 @@ CHOICES[#CHOICES + 1] = { "Replies", "Name on Your Messages", "youName", functio
 local SLIDERS = {
 	{ "The HUD", "HUD Opacity", "hudAlpha", 60, 100, 5, 100, "Sets how solid the HUD is over the world; the pointer never changes it." },
 }
+SWITCHES[#SWITCHES + 1] = { "Replies", "Read replies aloud", function() return S().speak == true end,
+	function(v)
+		if ns.Companion then ns.Notify.Local(ns.Companion.Call("SpeechCommand", v and "on" or "off") or "TTS isn't available in this client.") end
+	end, "Reads only new replies' TL;DR with the game's own text-to-speech voice. /nqa speak stop stops it.", false }
+SWITCHES[#SWITCHES + 1] = { "What NeverQuestAlone Knows", "Live Game Data", function() return S().live == true end,
+	function(v) if ns.Companion then ns.Companion.Call("LiveSwitch", v) end end,
+	"Keeps game data current between messages, at most once every 30 seconds, outside combat. Check-Ins and Screen Reading must be on here and in the app.", false }
+
 P.SWITCHES, P.CHOICES, P.SLIDERS = SWITCHES, CHOICES, SLIDERS
 local SECTIONS = { "The HUD", "Map", "Quests", "Replies", "Tooltips", "What NeverQuestAlone Knows", "Personality", QOL }
 

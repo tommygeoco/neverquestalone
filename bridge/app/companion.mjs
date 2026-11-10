@@ -15,7 +15,7 @@ export const STATE_BODY_MAX = 16384;
 export const QUEST_LIST_MAX = 1500;
 // Whole quest titles kept per token (fillTitles), the least recently seen go first.
 export const TITLE_CACHE_MAX = 1000;
-export const EVENT_KINDS = ['level_up', 'route_done', 'route_stale', 'zone_first'];
+export const EVENT_KINDS = ['level_up', 'route_done', 'route_stale', 'zone_first', 'bags_full', 'gear_breaking'];
 
 /** The fixed summary per event kind: game text never goes into the header. */
 export function eventSummary(kind, a = {}) {
@@ -25,6 +25,8 @@ export function eventSummary(kind, a = {}) {
     case 'route_done': return 'The route is finished';
     case 'route_stale': return num(a.n) ? `${a.n} quests picked up that no route covers` : 'Quests picked up that no route covers';
     case 'zone_first': return 'First visit to a zone';
+    case 'bags_full': return 'Bags are almost full';
+    case 'gear_breaking': return 'Equipped gear needs repair';
     case 'recap': return 'Session recap';
     default: return null;
   }

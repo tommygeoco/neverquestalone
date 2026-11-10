@@ -9,7 +9,7 @@ export const RS = '\x1e';
 export const US = '\x1f';
 export const GS = '\x1d';
 
-export const TYPES = new Set(['hello', 'msg', 'stop', 'patch', 'forget', 'seen', 'evt', 'state', 'upd']);
+export const TYPES = new Set(['hello', 'msg', 'stop', 'patch', 'forget', 'seen', 'evt', 'state', 'upd', 'vc']);
 const UNKEYED = new Set(['hello', 'seen', 'state']);
 const TOKEN_RE = /^[0-9a-f]{8}$/;
 const NONCE_RE = /^[0-9a-f]{4}$/;
@@ -70,8 +70,9 @@ export function parseRecord(wire) {
   // From here a keyed record's token and key are good: a rejection carries
   // them, so the bridge can ack it anyway and the addon stops drawing it.
   const keyed = n === null ? {} : { token, key };
-  // upd (the addon's updates) is keyed, so acked and deduped, but about no chat.
-  if (UNKEYED.has(type) || type === 'upd' ? chat !== '' : !CHAT_RE.test(chat)) return { ok: false, reason: 'chat', ...keyed };
+  // upd (the addon's updates) and vc (a voice command: odd/tasks/nqa-voice-controls.md T2) are keyed,
+  // so acked and deduped, but about no chat.
+  if (UNKEYED.has(type) || type === 'upd' || type === 'vc' ? chat !== '' : !CHAT_RE.test(chat)) return { ok: false, reason: 'chat', ...keyed };
   const args = parseArgs(argStr);
   if (!COUNT_RE.test(args.cur || '')) return { ok: false, reason: 'cur', ...keyed };
   // p (the push counter read) is optional: one out of range is dropped, the record kept.

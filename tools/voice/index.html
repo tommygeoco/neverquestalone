@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeverQuestAlone Voz</title>
+<style>
+  :root { --bg: #14110d; --panel: #1f1a14; --ink: #efe6d2; --muted: #a89a80; --gold: #e0b44a; --red: #d0573f; --green: #6fbf73; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; color: var(--gold); margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+  .bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 12px 18px; cursor: pointer; background: var(--gold); color: #1a1408; font-weight: 600; }
+  button.secondary { background: var(--panel); color: var(--ink); border: 1px solid #3a3226; }
+  button:disabled { opacity: .5; cursor: default; }
+  #status { color: var(--muted); font-size: 14px; }
+  #status.live { color: var(--green); }
+  #status.err { color: var(--red); }
+  #meter { height: 6px; background: var(--panel); border-radius: 3px; margin: 14px 0; overflow: hidden; }
+  #level { height: 100%; width: 0; background: var(--gold); transition: width .08s; }
+  #log { background: var(--panel); border-radius: 12px; padding: 12px 14px; min-height: 240px; max-height: 60vh; overflow-y: auto; }
+  .line { margin: 0 0 10px; white-space: pre-wrap; }
+  .you b { color: var(--muted); }
+  .bot b { color: var(--gold); }
+  .sys { color: var(--muted); font-size: 13px; }
+  .foot { color: var(--muted); font-size: 13px; margin-top: 12px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  kbd { background: var(--panel); border: 1px solid #3a3226; border-radius: 4px; padding: 0 5px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>NeverQuestAlone · Voz</h1>
+  <p class="sub">Háblale cuando quieras; puedes cortarlo a mitad de frase. Usa audífonos para que no se oiga a sí mismo ni al juego.</p>
+  <div class="bar">
+    <button id="connect">Conectar</button>
+    <button id="mute" class="secondary" disabled>Silenciar mic (<kbd>M</kbd>)</button>
+    <span id="status">Desconectado</span>
+  </div>
+  <div id="meter"><div id="level"></div></div>
+  <div id="log" aria-live="polite"></div>
+  <div class="foot"><span id="cost">Gasto de hoy: $0.000</span><span id="game">Datos del juego: sin consultar</span></div>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

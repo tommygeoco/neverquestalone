@@ -282,7 +282,9 @@ function T.LoadOutbox()
 		local n = KeyN(e.key)
 		-- One without a cursor the bridge will never ack: it goes, or it would
 		-- stay on the strip for good (an old Check for Updates).
-		if rec and n and rec.key == e.key and tonumber(rec.args and rec.args.cur) then
+		-- A voice command (vc) is only for the moment it was pressed: one left from before a reload
+		-- isn't drawn again (odd/tasks/nqa-voice-controls.md T12, Astra review 6).
+		if rec and n and rec.key == e.key and rec.type ~= "vc" and tonumber(rec.args and rec.args.cur) then
 			R.out[e.key] = { wire = wire, type = rec.type, chat = rec.chat, cur = tonumber(rec.args.cur) or 0, n = n }
 			R.sentAt[e.key] = GetTime() -- on the strip again from now
 			-- [DR-07] In SavedVariables at the last logout or /reload, so the app has read it:
@@ -1638,6 +1640,7 @@ function T.HandleSlotData(data, source)
 	local bridge = type(data.bridge) == "table" and data.bridge or {}
 	local readingWasOff = T.DesktopReadingOff()
 	R.bridge = bridge
+	if ns.Companion then ns.Companion.Call("VoiceHeard"); ns.Companion.Call("VoiceWanted") end -- the voice: its buttons, and a request for bags and gear (cap voice)
 	T.CheckBridgeVersion(bridge.ver)
 	-- SD-4 from the bridge's side: bridge.warn names a version or interface
 	-- mismatch it noticed. Said once per session per text, and kept for the

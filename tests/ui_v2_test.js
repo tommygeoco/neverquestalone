@@ -2757,11 +2757,11 @@ Menu = { ModifyMenu = function(tag, fn) STUB.menus[tag] = fn end }
   for (const c of controls.filter(c => c.includes('Quest Rewards: '))) assert.ok((c.length - 'checkbox: '.length) * 12 * 0.52 <= 180, c);
   // The Replies section's switches (Reply Cost and Message Times after Quiet in Combat), then the two choices
   // whose options run in order: a slider each, least to most, its value in words beside it.
-  const replies = controls.slice(controls.indexOf('checkbox: Quiet in Combat'), controls.indexOf('checkbox: Quiet in Combat') + 5);
-  assert.deepEqual(replies, ['checkbox: Quiet in Combat', 'checkbox: Reply Cost', 'checkbox: Message Times', 'slider: Replies in Your Chat Frame 1-4 by 1', 'slider: Chat Text Size 1-4 by 1']);
+  const replies = controls.slice(controls.indexOf('checkbox: Quiet in Combat'), controls.indexOf('checkbox: Quiet in Combat') + 6);
+  assert.deepEqual(replies, ['checkbox: Quiet in Combat', 'checkbox: Reply Cost', 'checkbox: Message Times', 'checkbox: Read replies aloud', 'slider: Replies in Your Chat Frame 1-4 by 1', 'slider: Chat Text Size 1-4 by 1']);
   // Copy and Paste's Connection (E-050): its two options don't run in order, so a check box each, exactly one
   // checked, as Quest Rewards' are; both carry the choice's one tooltip, in the product's name.
-  const at = controls.indexOf('checkbox: Quiet in Combat') + 5;
+  const at = controls.indexOf('checkbox: Quiet in Combat') + 6;
   assert.deepEqual(controls.slice(at, at + 2), ['checkbox: Connection: Automatic', 'checkbox: Connection: Copy and Paste']);
   for (const c of controls.slice(at, at + 2)) assert.ok((c.length - 'checkbox: '.length) * 12 * 0.52 <= 195, c);
   for (const row of ['Connection: Automatic', 'Connection: Copy and Paste']) {
@@ -2868,7 +2868,7 @@ test('C-127: the keys have a Keybindings section of their own, named as the AddO
   const bindings = bindingsXml(fs.readFileSync(path.join(ADDON, 'Bindings.xml'), 'utf8'));
   // The binding names stay, so keys bound before keep working; each is in the addon's own category, as
   // Blizzard_PingUI's keys are in theirs, and none has a header.
-  assert.deepEqual(bindings.map(b => b.name), ['NQA_OPEN_AND_TYPE', 'NQA_ASK_NEXT', 'NQA_ASK_TARGET', 'NQA_ASK_ITEM', 'NQA_OKAY']);
+  assert.deepEqual(bindings.map(b => b.name), ['NQA_OPEN_AND_TYPE', 'NQA_ASK_NEXT', 'NQA_ASK_TARGET', 'NQA_ASK_ITEM', 'NQA_VOICE_TALK', 'NQA_VOICE_TIP', 'NQA_VOICE_MUTE', 'NQA_VOICE_PAUSE', 'NQA_OKAY']);
   for (const b of bindings) {
     assert.equal(b.category, 'BINDING_HEADER_NQA', `${b.name}: its category`);
     assert.equal(b.header, undefined, `${b.name}: no header (the page draws one as a blank row)`);

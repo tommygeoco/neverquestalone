@@ -426,7 +426,7 @@ test('core: the slot names its backend (bridge.backend) and carries the watchdog
     const b = none.bridge.buildSlot().bridge;
     assert.equal(b.backend, 'byok', 'the backend named whatever the backend object says');
     assert.equal(b.capture, undefined);
-    assert.deepEqual(b.caps, ['state', 'evt', 'think', 'z', 'ctx', 'qlog'], 'the core\'s own caps');
+    assert.deepEqual(b.caps, ['state', 'evt', 'think', 'z', 'ctx', 'qlog', 'voice'], 'the core\'s own caps');
     assert.equal(none.bridge.status().capture, null);
     assert.equal(none.bridge.captureHealth, null, 'a host that feeds the strip itself has no watchdog');
   } finally { await none.bridge.stop(); }
@@ -551,7 +551,7 @@ test('core (seam): the bridge hands the backend the raw turn: the words as typed
     const slot = bridge.buildSlot();
     assert.deepEqual(Object.keys(slot), ['v', 'ts', 'now', 'token', 'bridge', 'gw', 'agents', 'chats', 'records', 'map']);
     // epoch: the store's (systems plan SY-02), so an addon can tell a store that started over; backend: what it runs on.
-    assert.deepEqual(Object.keys(slot.bridge), ['ver', 'push', 'epoch', 'nonce', 'acked', 'warn', 'caps', 'stateSeq', 'stateSid', 'backend']);
+    assert.deepEqual(Object.keys(slot.bridge), ['ver', 'push', 'epoch', 'nonce', 'acked', 'warn', 'caps', 'stateSeq', 'stateSid', 'backend', 'voice']);
     assert.equal(slot.bridge.backend, 'byok');
   } finally {
     await bridge.stop();

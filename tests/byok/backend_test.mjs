@@ -458,6 +458,13 @@ test('backend: slotExtras: the addon\'s caps, bridge.provider, bridge.usage (wit
     // Claude's default, Sonnet 5.5, at Low; its levels for the in-game list (fix-102).
     assert.deepEqual(x.bridge.provider, {
       id: 'anthropic', name: 'Anthropic', model: 'claude-sonnet-5-5', modelName: 'Claude Sonnet 5.5', effort: 'low', effortSupported: true,
+      models: [
+        { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+        { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
+        { id: 'claude-fable-5-1', label: 'Claude Fable 5.1' },
+        { id: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
+        { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+      ],
       efforts: 'off low medium high xhigh max',
       auth: 'key', keyState: 'ok', privacy: 'cloud-no-train', product: 'NeverQuestAlone', companion: 'NeverQuestAlone',
     });

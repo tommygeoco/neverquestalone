@@ -23,3 +23,4 @@ HUD.lua
 Tooltips.lua
 Chains.lua
 Settings.lua
+VoiceBar.lua

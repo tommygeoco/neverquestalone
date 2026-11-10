@@ -25,6 +25,21 @@
 	<Binding name="NQA_ASK_ITEM" category="BINDING_HEADER_NQA">
 		if NeverQuestAlone and NeverQuestAlone.QuickAsk then NeverQuestAlone.QuickAsk("item") end
 	</Binding>
+	<!-- The voice companion (odd/tasks/nqa-voice-controls.md): Talk opens its microphone for one
+	     question; the others turn the microphone on or off and pause or resume the conversation. They
+	     tell the NeverQuestAlone app (a strip record), never the game. -->
+	<Binding name="NQA_VOICE_TALK" category="BINDING_HEADER_NQA">
+		if NeverQuestAlone and NeverQuestAlone.Voice then NeverQuestAlone.Voice("talk") end
+	</Binding>
+	<Binding name="NQA_VOICE_TIP" category="BINDING_HEADER_NQA">
+		if NeverQuestAlone and NeverQuestAlone.Voice then NeverQuestAlone.Voice("tip") end
+	</Binding>
+	<Binding name="NQA_VOICE_MUTE" category="BINDING_HEADER_NQA">
+		if NeverQuestAlone and NeverQuestAlone.Voice then NeverQuestAlone.Voice("toggle_mute") end
+	</Binding>
+	<Binding name="NQA_VOICE_PAUSE" category="BINDING_HEADER_NQA">
+		if NeverQuestAlone and NeverQuestAlone.Voice then NeverQuestAlone.Voice("toggle_pause") end
+	</Binding>
 	<!-- The HUD's Okay: the newest reply is read and put away; nothing is sent. -->
 	<Binding name="NQA_OKAY" category="BINDING_HEADER_NQA">
 		if NeverQuestAlone and NeverQuestAlone.Okay then NeverQuestAlone.Okay() end

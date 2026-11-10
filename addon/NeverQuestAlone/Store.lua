@@ -93,6 +93,10 @@ local BINDING_WORDS = {
 	NQA_ASK_TARGET = "Ask About My Target",
 	NQA_ASK_ITEM = "Ask About the Hovered Item",
 	NQA_OKAY = "Okay the Newest Reply",
+	NQA_VOICE_TALK = "Talk to the Voice",
+	NQA_VOICE_TIP = "Voice: What Should I Do?",
+	NQA_VOICE_MUTE = "Voice: Microphone On/Off",
+	NQA_VOICE_PAUSE = "Voice: Pause/Resume",
 }
 for k, v in pairs(BINDING_WORDS) do _G["BINDING_NAME_" .. k] = v end
 
@@ -399,7 +403,7 @@ function ns.Str(v, max)
 end
 
 -- bridge.provider { id, name, model, modelName, effort, effortSupported, efforts,
--- auth, keyState, privacy, product, companion }, with the provider cap.
+-- auth, keyState, privacy, product, companion, models? [{id,label}] }, with the provider cap.
 -- efforts: the model's thinking levels, cheapest first, space-separated.
 function ns.Provider()
 	if not ns.HasCap("provider") then return nil end
@@ -829,6 +833,8 @@ end
 ---------------------------------------------------------------------------
 
 local SETTINGS_DEFAULTS = {
+	speak = false, -- read companion summaries with the client's TTS
+	live = false, -- live state snapshots between messages
 	echo = "summary", -- summary | full | short | off (RC-8)
 	context = true, -- game context rides along (SE-7)
 	dndCombat = true, -- NT-2
@@ -956,6 +962,16 @@ function ns.InitDB()
 	if not ECHO_MODES[s.echo] then s.echo = "summary" end
 	if s.mode ~= "pixel" and s.mode ~= "reload" then s.mode = "pixel" end
 	if s.replies ~= "auto" and s.replies ~= "paste" then s.replies = "auto" end
+	s.speak, s.live = s.speak == true, s.live == true
+	-- The voice companion's persona (Companion.VOICE_PERSONAS): a name it knows, else none.
+	if type(s.voicePersona) ~= "string" or not s.voicePersona:match("^[a-z%-]+$") or #s.voicePersona > 24 then s.voicePersona = nil end
+	-- The voice bar (VoiceBar.lua): on unless turned off; where you dragged it, whole numbers on screen.
+	s.voiceBar = s.voiceBar ~= false
+	s.voiceRead = s.voiceRead == true -- the voice companion reads replies aloud (Companion.VoiceRead)
+	for _, k in ipairs({ "voiceBarX", "voiceBarY" }) do
+		local v = s[k]
+		if type(v) ~= "number" or v ~= v or v < -100 or v > 10000 then s[k] = nil else s[k] = math.floor(v) end
+	end
 	s.stream = s.stream and true or false
 	if not ns.TEXT_SIZES[s.textSize] then s.textSize = "medium" end
 	for _, k in ipairs({ "hud", "hudMin", "hudCompass", "waypoint", "tooltips", "quips", "replyCost", "times" }) do s[k] = s[k] and true or false end -- [UX-3] replyCost; times

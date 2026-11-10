@@ -212,7 +212,8 @@ test('NeverQuestAlone loads, builds its window, registers /nqa, /bones and /br, 
   // global names (TB5; the /nqa handler, the saved outbox and the strip stay
   // reachable by other addons: ADDON.md, Safety).
   const pub = Object.keys(vm.json('NeverQuestAlone')).sort();
-  assert.deepEqual(pub, ['Okay', 'OpenAndType', 'QuickAsk', 'version'], 'no unused exports (code health AD-19)');
+  assert.deepEqual(pub, ['Okay', 'OpenAndType', 'QuickAsk', 'Voice', 'version'], 'no unused exports (code health AD-19); Voice: the voice keys (Bindings.xml)');
+  assert.doesNotThrow(() => vm.run('NeverQuestAlone.Voice("say this for me")'), 'Voice takes only its own kinds and sends nothing for others');
   assert.equal(vm.evaluate('NeverQuestAlone.QuickAsk("say this for me")'), 'false', 'QuickAsk takes only its own kinds');
   vm.run('NeverQuestAlone.Okay("say this for me")');
   assert.equal(vm.outboxWires().length, 0, 'Okay sends nothing, whatever it is given');

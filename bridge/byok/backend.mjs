@@ -134,7 +134,7 @@ import { writeFileQuick } from '../files.mjs';
 import { CHAT_RE } from '../transport/records.mjs';
 import { loadManifests, createProvider, userLine, retryPlan, resolveModel, manifestFor, effortLevels, thinkRoom, outputCeiling, EFFORT_LEVELS, THINK_ROOM, DEFAULT_TIMEOUTS } from './providers/index.mjs';
 import { makeError, errorLogFields, cleanRequestId } from './providers/errors.mjs';
-import { loadPack, personaName } from './runtime/pack.mjs';
+import { loadPack, loadChatPack, personaName } from './runtime/pack.mjs';
 import { FILES as MEMORY_FILES, MEMORY_DIR, charKey } from './runtime/logbook.mjs';
 import { createUsageHistory } from './usage/history.mjs';
 import { buildRequest, replyTranscript, stripDatamark, resolveEffort, modelHasEffort, MAX_TOKENS, EFFORTS } from './runtime/context.mjs';
@@ -445,6 +445,63 @@ export function createLocalBackend(handlers = {}, opts = {}) {
   fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   try { fs.chmodSync(dataDir, 0o700); } catch { /* Windows: the per-user folder's ACL */ }
   const clock = () => +now();
+  // The local brain (odd/tasks/nqa-brain.md B6): sourced facts for what the player asks, from
+  // <dataDir>/brain/brain.sqlite when it exists (tools/brain). Loaded once in the background; a turn
+  // that comes before it, or any error, simply goes without facts.
+  const brain = { retrieve: null, db: null, tried: false };
+  const brainChat = opts.brainChat !== false && process.env.NQA_BRAIN_CHAT !== '0';
+  const FAST_MAX_TOKENS = 500; // a short answer, its map block and the TL;DR
+  let chatPackCache = null;
+  const chatPack = () => (chatPackCache && chatPackCache.name === personaName(settings.persona) ? chatPackCache : (chatPackCache = loadChatPack({ persona: { name: settings.persona } })));
+  const brainFacts = (question, state) => {
+    if (opts.brain === false) return [];
+    if (!brain.tried) {
+      const file = path.join(dataDir, 'brain', 'brain.sqlite');
+      // Not there yet (not imported): try again on a later turn.
+      if (fs.existsSync(file)) {
+        brain.tried = true;
+        Promise.all([import('../../tools/brain/db.mjs'), import('../../tools/brain/retrieve.mjs'), import('../../tools/brain/profile.mjs')])
+          .then(([d, r, p]) => { brain.db = d.openBrain(file, { readOnly: true }); brain.retrieve = r.retrieve; brain.profile = p; log('byok-brain', { ready: true }); })
+          .catch(e => log('byok-brain', { ready: false, error: short(e) }));
+      }
+      return [];
+    }
+    if (!question || !brain.retrieve || !brain.db) return [];
+    try {
+      const r = brain.retrieve({ db: brain.db, question, state });
+      if (r.lines.length) log('byok-brain-facts', { facts: r.lines.length, ms: r.ms });
+      const who = brain.profile && brain.profile.profileLines(brain.db, brain.profile.charKey(state));
+      const lines = [...(who || []).slice(0, 6), ...r.lines];
+      lines.found = r.lines.length;
+      return lines;
+    } catch (e) { log('byok-brain', { error: short(e) }); return []; }
+  };
+  brainFacts('', null); // start loading it now
+  // After a typed turn (B4): the character's profile from the game, what the player said about
+  // themselves, and both sides of the exchange as said rows (the model's words never become facts).
+  const brainW = { db: null, profile: null, tried: false };
+  const brainRemember = (state, typed, replyText) => {
+    if (opts.brain === false) return;
+    if (!brainW.tried) {
+      brainW.tried = true;
+      const file = path.join(dataDir, 'brain', 'brain.sqlite');
+      if (fs.existsSync(file)) {
+        Promise.all([import('../../tools/brain/db.mjs'), import('../../tools/brain/profile.mjs')])
+          .then(([d, p]) => { brainW.db = d.openBrain(file); brainW.profile = p; })
+          .catch(e => log('byok-brain', { write: false, error: short(e) }));
+      }
+    }
+    if (!brainW.db || !brainW.profile) return;
+    try {
+      const P = brainW.profile;
+      const key = P.updateFromState(brainW.db, state) || P.charKey(state);
+      if (!key) return;
+      const learned = typed ? P.learnFromPlayer(brainW.db, key, typed) : [];
+      if (typed) P.recordSaid(brainW.db, key, 'player', 'chat', typed);
+      if (replyText) P.recordSaid(brainW.db, key, 'brain', 'chat', replyText);
+      if (learned.length) log('byok-brain-learned', { keys: learned });
+    } catch (e) { log('byok-brain', { write: false, error: short(e) }); }
+  };
   const manifests = opts.manifests ?? loadManifests({ onWarning: w => log('byok-manifest-warn', { provider: w.id, reason: String(w.reason).slice(0, 160) }) });
   const priceBook = opts.priceBook ?? createPriceBook();
   let settings = settingsOf(opts.config);
@@ -674,6 +731,7 @@ export function createLocalBackend(handlers = {}, opts = {}) {
   let notice = null; // {kind: 'model_switched', from, to, at} | {kind: 'model_retired', model, at}
   let noticeLine = null; // the §10 line the next turn's chat gets once
   let modelCheck = null; // {at, ok, models?, errorKind?, code?}
+  let discoveredModels = []; // current service only; populated by the existing /models check
   let checkBusy = null;
   let checkFor = -1; // the generation the running check is for
   const modelLabel = (manifest, id) => manifest.models?.list?.find(e => e.id === id)?.label || id;
@@ -701,6 +759,9 @@ export function createLocalBackend(handlers = {}, opts = {}) {
           return { ok: false };
         }
         modelCheck = { at: clock(), ok: true, models: r.models.length };
+        const previous = JSON.stringify(modelChoices(p));
+        discoveredModels = r.models;
+        if (JSON.stringify(modelChoices(p)) !== previous) on.change({ push: true });
         const res = resolveModel(p.manifest, r.models, p.model);
         if (res.model && !res.switched) {
           log('byok-model-check', { reason, provider: p.id, model: p.model, available: true });
@@ -733,6 +794,7 @@ export function createLocalBackend(handlers = {}, opts = {}) {
   // A new provider, model or key: what was read about the old one goes, and the check runs again.
   function providerChanged({ keyChanged = false } = {}) {
     provGen += 1;
+    discoveredModels = [];
     if (keyChanged) modelCheck = null;
     checkModel({ reason: keyChanged ? 'key' : 'provider' });
   }
@@ -944,6 +1006,9 @@ export function createLocalBackend(handlers = {}, opts = {}) {
     } else if (stateDoc) game.state = stateDoc;
     // The core's mark for a state older than the one the turn named (rawTurn): the count line says so.
     if (game.state && w.stale === true) game.stale = true;
+    // Sourced facts for what the player typed (the brain): data, quoted, with their source.
+    let found = 0;
+    if (t.wowKind === 'msg') { const facts = brainFacts(t.typed, w.state); if (facts.length) game.facts = facts; found = facts.found || 0; }
     const notes = keyFree(Array.isArray(w.notes) ? w.notes.filter(x => typeof x === 'string' && x) : [], 'notes', t.chatId);
     if (notes.length) game.notes = notes;
     // The first meeting (onboarding spec §9.3, §9.6): Say Hi's "hi" before any first reply. The pack's
@@ -967,11 +1032,16 @@ export function createLocalBackend(handlers = {}, opts = {}) {
     // The first meeting's cap is the reply's (fix-102): a model that thinks gets its level's thinking
     // room on top of it (buildRequest, THINK_ROOM), so its thinking never eats the short answer.
     const introCap = intro && GREETING_RE.test(t.typed);
+    // The short path (odd/tasks/nqa-fast-chat.md F3): a typed question the brain found facts for goes
+    // with the compact pack (the answer starts about 2 s sooner). The first meeting, a message with
+    // linked tooltips, and anything the brain has nothing for keep the full pack and the logbook.
+    const fast = brainChat && found > 0 && !intro && !/Linked from the game/i.test(String(t.typed || ''));
+    if (fast) log('byok-brain-chat', { fast: true, facts: found });
     const req = buildRequest({
-      pack, memory: mem, game, history, userText: t.wowKind === 'msg' ? t.typed : '',
+      pack: fast ? chatPack() : pack, memory: fast ? null : mem, game, history, userText: t.wowKind === 'msg' ? t.typed : '',
       pseudonymizer, sendNames: settings.sendNames, identity: settings.identity,
       manifest: p.manifest, model: p.model, effort: t.effort, safetyId: safetyId(),
-      maxTokens: Math.max(1, Math.min(MAX_TOKENS, perTurnOut, p.manifest.limits?.maxOutputTokens || MAX_TOKENS, introCap ? INTRO_MAX_TOKENS : MAX_TOKENS)),
+      maxTokens: Math.max(1, Math.min(fast ? FAST_MAX_TOKENS : MAX_TOKENS, perTurnOut, p.manifest.limits?.maxOutputTokens || MAX_TOKENS, introCap ? INTRO_MAX_TOKENS : MAX_TOKENS)),
     });
     if (p.manifest.custom !== true) return req;
     // Other: what its server said the model takes, and the room it needed to think and still answer.
@@ -1267,6 +1337,7 @@ export function createLocalBackend(handlers = {}, opts = {}) {
       const kept = replyTranscript(wire, pseudonymizer);
       transcripts.append(t.chatId, { ...kept, text: redactKeys(kept.text), t: replyT, run: t.idem, usage });
     } catch (e) { log('byok-transcript-error', { chat: t.chatId, error: short(e) }); }
+    if (t.wowKind === 'msg') brainRemember(t.wow?.state, t.typed, redactKeys(String(wire ?? '')));
 
     t.booked = true;
     noteUsage(t, p, { micros, exact, inTokens: usage.in, outTokens: usage.out });
@@ -1488,6 +1559,23 @@ export function createLocalBackend(handlers = {}, opts = {}) {
   }
 
   // ---------------------------------------------------------------- what the slot and the app read
+  // An optional, small list for the in-game picker. Custom services publish the IDs their own
+  // /models endpoint returned; bundled providers use only the supported manifest entries.
+  function modelChoices(p) {
+    const entries = p.manifest.models?.list ?? [];
+    const ids = [p.model, ...(p.manifest.models?.allowAny ? discoveredModels : entries.map(e => e.id))];
+    const seen = new Set(), out = [];
+    for (const id of ids) {
+      if (typeof id !== 'string' || !MODEL_ID_RE.test(id) || looksLikeKey(id) || seen.has(id)) continue;
+      seen.add(id);
+      const named = entries.find(e => e.id === id)?.label;
+      const label = typeof named === 'string' && !looksLikeKey(named) ? named.replace(/[\x00-\x1f\x7f|]/g, '').slice(0, 60) : id;
+      const item = { id, label };
+      if (out.length >= 24 || Buffer.byteLength(JSON.stringify([...out, item])) > 2048) break;
+      out.push(item);
+    }
+    return out;
+  }
   function providerView() {
     const p = current();
     const effort = (() => { try { return resolveEffort(settings.effort, p.manifest, p.model); } catch { return null; } })();
@@ -1495,6 +1583,7 @@ export function createLocalBackend(handlers = {}, opts = {}) {
     const levels = supported ? effortLevels(p.manifest, p.model) : [];
     return {
       id: p.id, name: p.name, model: p.model || '', modelName: p.modelName || p.model || '',
+      models: modelChoices(p),
       // effort: the level the next turn goes at (the player's, as the model's nearest level); efforts:
       // the model's levels, cheapest first, space-separated (chatSlot's).
       effort: effort ?? undefined, effortSupported: supported, ...(levels.length ? { efforts: levels.join(' ') } : {}),
@@ -1689,7 +1778,7 @@ export function createLocalBackend(handlers = {}, opts = {}) {
         slowedBy = null;
       }
       // Another provider: the chats' own models were its ids, so every chat goes back to the new one's.
-      if (next.provider !== before.provider) {
+      if (next.provider !== before.provider || (next.provider === 'custom' && next.custom?.baseUrl !== before.custom?.baseUrl)) {
         let n = 0;
         for (const id of Object.keys(side.chats)) if (dropOwnModel(id)) n += 1;
         if (n) log('byok-chat-model', { dropped: 'provider_changed', chats: n });
