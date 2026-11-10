@@ -10,6 +10,7 @@
   "hosts": ["chatgpt.com", "auth.openai.com"],
   "auth": { "header": "authorization", "scheme": "Bearer", "signIn": "chatgpt" },
   "headers": { "originator": "neverquestalone" },
+  "cacheKey": { "header": "session_id" },
   "keyPattern": null,
   "keyRejectPattern": null,
   "keyMatchOrder": 100,

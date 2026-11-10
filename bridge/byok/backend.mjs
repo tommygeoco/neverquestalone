@@ -514,6 +514,15 @@ export function createLocalBackend(handlers = {}, opts = {}) {
     return t;
   };
   const safetyId = () => settings.safetyId || side.safetyId;
+  // A chat's cache key, for a provider that reuses a chat's prompt when told which chat it is (its
+  // manifest's cacheKey: the ChatGPT plan's session_id and prompt_cache_key). A hash of the install's
+  // own random id and the chat's, shaped as a UUID: the same for a chat's every turn, and it names
+  // neither the install's safety id nor the chat.
+  const cacheKeyOf = (manifest, chatId) => {
+    if (!manifest?.cacheKey || typeof chatId !== 'string' || !chatId) return null;
+    const h = crypto.createHash('sha256').update(`nqa-cache:${side.safetyId}:${chatId}`).digest('hex');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+  };
 
   // The transcripts as the app sees them: forgetting a chat's (or all of them) also drops the chat's
   // last request.
@@ -973,7 +982,7 @@ export function createLocalBackend(handlers = {}, opts = {}) {
     const req = buildRequest({
       pack, memory: mem, game, history, userText: t.wowKind === 'msg' ? t.typed : '',
       pseudonymizer, sendNames: settings.sendNames, identity: settings.identity,
-      manifest: p.manifest, model: p.model, effort: t.effort, safetyId: safetyId(),
+      manifest: p.manifest, model: p.model, effort: t.effort, safetyId: safetyId(), cacheKey: cacheKeyOf(p.manifest, t.chatId),
       maxTokens: Math.max(1, Math.min(MAX_TOKENS, perTurnOut, p.manifest.limits?.maxOutputTokens || MAX_TOKENS, introCap ? INTRO_MAX_TOKENS : MAX_TOKENS)),
     });
     if (p.manifest.custom !== true) return req;

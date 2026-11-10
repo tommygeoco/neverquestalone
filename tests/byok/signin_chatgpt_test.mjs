@@ -102,13 +102,55 @@ test('the listener: 127.0.0.1 only, the callback path only, the state it sent; a
     assert.equal(u.hostname, '127.0.0.1');
     assert.equal(u.pathname, '/auth/callback');
     assert.equal((await fetch(new URL('/other', u))).status, 404);
+    assert.equal((await fetch(new URL('/auth/done', u))).status, 404, 'nothing to say before a sign-in');
     const wrong = await fetch(`${l.redirectUri}?code=c1&state=wrong`);
     assert.equal(wrong.status, 400);
-    const ok = await fetch(`${l.redirectUri}?code=c2&state=right`);
-    assert.equal(ok.status, 200);
-    assert.match(await ok.text(), /signed in/i);
+    // The code's address is sent on to a plain one, so the code isn't left in the address bar or history.
+    const hop = await fetch(`${l.redirectUri}?code=c2&state=right`, { redirect: 'manual' });
+    assert.equal(hop.status, 303);
+    assert.equal(hop.headers.get('location'), '/auth/done');
+    assert.equal(hop.headers.get('referrer-policy'), 'no-referrer');
     assert.deepEqual(await l.result, { code: 'c2' });
+    const page = await fetch(new URL('/auth/done', u));
+    assert.equal(page.status, 200, 'the listener waits for the browser to land');
+    assert.match(await page.text(), /signed in/i);
   } finally { l.close(); }
+});
+
+test('the listener: a browser that follows the redirect lands on the done page; one that never comes doesn\'t keep it open', async () => {
+  const l = await listenForCode({ state: 's', ports: [0], timeoutMs: 5000 });
+  const r = await fetch(`${l.redirectUri}?code=c&state=s`);
+  assert.equal(r.status, 200);
+  assert.equal(new URL(r.url).pathname, '/auth/done');
+  assert.match(await r.text(), /signed in/i);
+  const again = await fetch(`${l.redirectUri}?code=c&state=s`).then(x => x.status, () => 'closed');
+  assert.ok(again === 404 || again === 'closed', 'one code only');
+  const gone = await listenForCode({ state: 's', ports: [0], timeoutMs: 5000, lingerMs: 20 });
+  const port = new URL(gone.redirectUri).port;
+  await fetch(`${gone.redirectUri}?code=c&state=s`, { redirect: 'manual' });
+  await gone.result;
+  await new Promise(res => setTimeout(res, 80));
+  const after = await fetch(`http://127.0.0.1:${port}/auth/done`).then(x => x.status, () => 'closed');
+  assert.equal(after, 'closed', 'closed once its short wait ran out');
+});
+
+test('the cache key: a plan\'s requests name their chat (session_id and prompt_cache_key); a keyed AI\'s never do', async () => {
+  const { loadManifests } = await import('../../bridge/byok/providers/index.mjs');
+  const { responses } = await import('../../bridge/byok/providers/adapters/openai.mjs');
+  const ms = loadManifests();
+  const plan = ms.find(m => m.id === 'chatgpt');
+  const key = '0a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d';
+  const req = { model: 'gpt-6-luna', system: [{ text: 'pack' }], messages: [{ role: 'user', content: 'hi' }], cacheKey: key };
+  const t = responses.chatRequest(plan, req, {});
+  assert.equal(t.headers.session_id, key);
+  assert.equal(t.body.prompt_cache_key, key);
+  const none = responses.chatRequest(plan, { ...req, cacheKey: undefined }, {});
+  assert.equal(none.headers.session_id, undefined);
+  assert.equal('prompt_cache_key' in none.body, false);
+  const openai = ms.find(m => m.id === 'openai');
+  const o = responses.chatRequest(openai, req, {});
+  assert.equal(o.headers.session_id, undefined, 'only a manifest that names cacheKey sends it');
+  assert.equal('prompt_cache_key' in o.body, false);
 });
 
 test('the listener: a denial is cancelled, a timeout times out, an abort cancels, and a busy port moves to the next', async () => {

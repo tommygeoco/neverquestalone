@@ -360,7 +360,7 @@ export function fitData(data, max = DATA_MAX_CHARS, { whole = false } = {}) {
 export function buildRequest({
   pack, memory = null, game = null, gameBlock = null, history = [], userText = '',
   pseudonymizer = null, names = [], sendNames = false, identity = false, self = null,
-  manifest = null, model, effort, maxTokens = MAX_TOKENS, safetyId = null,
+  manifest = null, model, effort, maxTokens = MAX_TOKENS, safetyId = null, cacheKey = null,
   datamark = manifest?.local === true, dataMax = DATA_MAX_CHARS,
   nonce = crypto.randomBytes(4).toString('hex'),
 } = {}) {
@@ -491,6 +491,8 @@ export function buildRequest({
     replyTokens: reply,
     effort: effortOut,
     safetyId,
+    // The chat's cache key (a provider whose manifest names cacheKey: the ChatGPT plan): opaque, per chat.
+    ...(typeof cacheKey === 'string' && cacheKey ? { cacheKey } : {}),
     meta: {
       packVersion: typeof pack === 'object' ? pack.version ?? null : null,
       provider: manifest?.id ?? null,

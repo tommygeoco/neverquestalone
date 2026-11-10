@@ -242,6 +242,8 @@ export function validateManifest(m) {
   if (m.keyRejectPattern != null) need(typeof m.keyRejectPattern === 'string' && compiles(m.keyRejectPattern), 'keyRejectPattern must be a regex source');
   need(Number.isInteger(m.keyMatchOrder), 'keyMatchOrder must be an integer');
   need(isObj(m.headers), 'headers must be an object');
+  // A chat's cache key, sent in this header and as the body's prompt_cache_key (Responses only).
+  if (m.cacheKey != null) need(isObj(m.cacheKey) && typeof m.cacheKey.header === 'string' && /^[a-z][a-z0-9_-]*$/.test(m.cacheKey.header) && m.adapter === 'openai-responses', 'cacheKey needs a lowercase header name, on the Responses adapter');
   need(isObj(m.paths) && typeof m.paths.chat === 'string' && typeof m.paths.models === 'string', 'paths needs chat and models');
   if (m.keyCheck != null) need(isObj(m.keyCheck) && typeof m.keyCheck.path === 'string', 'keyCheck needs a path');
   const models = m.models;

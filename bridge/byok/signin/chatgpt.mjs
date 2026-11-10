@@ -143,20 +143,33 @@ const PAGE = (title, line) => `<!doctype html><meta charset="utf-8"><title>${tit
   + '<body style="font:16px system-ui,sans-serif;max-width:32em;margin:15vh auto;padding:0 16px">'
   + `<h1 style="font-size:20px">${title}</h1><p>${line}</p></body>`;
 
+/** Where the browser lands after a sign-in: a plain address, so the code isn't left in its history. */
+export const DONE_PATH = '/auth/done';
+/** How long the listener waits for the browser to follow that redirect before it closes anyway. */
+const LINGER_MS = 3000;
+
 /**
  * The redirect's listener: 127.0.0.1 on the first free port of PORTS, one GET to CALLBACK_PATH with
- * the state we sent. → {redirectUri, result: Promise<{code} | {error}>, close()}.
+ * the state we sent. A good one is sent on (303) to DONE_PATH, which says it's done, so the address
+ * bar and history show no code. → {redirectUri, result: Promise<{code} | {error}>, close()}.
  */
-export async function listenForCode({ state, ports = PORTS, timeoutMs = SIGN_IN_MS, signal = null, createServer = http.createServer } = {}) {
+export async function listenForCode({ state, ports = PORTS, timeoutMs = SIGN_IN_MS, signal = null, createServer = http.createServer, lingerMs = LINGER_MS } = {}) {
   let settle;
   const result = new Promise(r => { settle = r; });
   let done = false;
+  let signedIn = false; // the code came: DONE_PATH says so, once
+  let landed = null; // closes the server once the browser has landed on DONE_PATH
   const finish = (v) => { if (!done) { done = true; settle(v); } };
   const server = createServer((req, res) => {
     let u;
     try { u = new URL(req.url, 'http://127.0.0.1'); } catch { res.writeHead(400).end(); return; }
-    if (req.method !== 'GET' || u.pathname !== CALLBACK_PATH) { res.writeHead(404).end(); return; }
-    const send = (status, title, line) => { res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); res.end(PAGE(title, line)); };
+    const send = (status, title, line) => { res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' }); res.end(PAGE(title, line)); };
+    if (req.method === 'GET' && u.pathname === DONE_PATH && signedIn) {
+      send(200, 'You’re signed in', 'You can close this tab and go back to the NeverQuestAlone app.');
+      res.on('finish', () => landed?.());
+      return;
+    }
+    if (req.method !== 'GET' || u.pathname !== CALLBACK_PATH || signedIn) { res.writeHead(404).end(); return; }
     if (u.searchParams.get('state') !== state) { send(400, 'Sign-in didn’t match', 'Start again from the NeverQuestAlone app.'); return; }
     const err = u.searchParams.get('error');
     const code = u.searchParams.get('code');
@@ -165,7 +178,9 @@ export async function listenForCode({ state, ports = PORTS, timeoutMs = SIGN_IN_
       finish({ error: err === 'access_denied' ? 'cancelled' : 'sign_in_failed' });
       return;
     }
-    send(200, 'You’re signed in', 'You can close this tab and go back to the NeverQuestAlone app.');
+    signedIn = true;
+    res.writeHead(303, { location: DONE_PATH, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+    res.end();
     finish({ code });
   });
   let port = null;
@@ -190,14 +205,19 @@ export async function listenForCode({ state, ports = PORTS, timeoutMs = SIGN_IN_
   const onAbort = () => finish({ error: 'cancelled' });
   signal?.addEventListener?.('abort', onAbort, { once: true });
   let closed = false;
+  const shut = () => { server.close(); server.closeAllConnections?.(); };
   const close = () => {
     if (closed) return;
     closed = true;
     clearTimeout(timer);
     signal?.removeEventListener?.('abort', onAbort);
     finish({ error: 'cancelled' });
-    server.close();
-    server.closeAllConnections?.();
+    // Signed in: the browser is on its way to DONE_PATH; wait for it (briefly), then close.
+    if (signedIn) {
+      const linger = setTimeout(shut, lingerMs);
+      linger.unref?.();
+      landed = () => { clearTimeout(linger); shut(); };
+    } else shut();
   };
   result.then(close, close);
   return { redirectUri: `http://127.0.0.1:${port}${CALLBACK_PATH}`, result, close };
