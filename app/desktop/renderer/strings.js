@@ -131,6 +131,16 @@ window.BonesStrings = {
     keyRejectedChip: 'Key rejected',
     noCreditChip: 'No credit',
     connectedChip: 'Connected',
+    // A plan that signs in (ChatGPT plan): no key, no price per reply. The button's own words are the
+    // provider's (providers.<id>.signInBtn); this is the fallback.
+    signInBtn: 'Sign in to {co}',
+    signingInBtn: 'Waiting for your browser…', // the browser is open at the sign-in page
+    cancelSignInBtn: 'Cancel sign-in',
+    useSignInBtn: 'Use saved sign-in',
+    signInAgainBtn: 'Sign in again',
+    signedInChip: 'Signed in',
+    planCostLine: 'Included in your plan',
+    plansBtn: 'Open {co}’s plans',
     // One line under the actions for each result (spec §6.1's table): what's true now. The row's
     // chip or the relabelled primary is the next step.
     result: {
@@ -166,6 +176,13 @@ window.BonesStrings = {
       busyLine: 'Finish the open dialog first.',
       failedLine: 'Something went wrong with {co}.',
       openRouterLine: 'That’s a key from OpenRouter.',
+      signInCancelledLine: 'Not signed in. Click Sign in to try again.',
+      portBusyLine: 'Another sign-in is open. Close it, then try again.', // the redirect's port is taken (Codex's own sign-in uses it too)
+      browserFailedLine: 'Your browser didn’t open. Try again.',
+      signInTimeoutLine: 'The sign-in took too long. Try again.',
+      signInFailedLine: '{co} didn’t finish the sign-in. Try again.',
+      signInEndedLine: 'Your {ai} sign-in ended. Sign in again.',
+      notSignedInLine: 'You’re not signed in yet.',
     },
   },
 
@@ -233,7 +250,7 @@ window.BonesStrings = {
       createStep: 'Click Create key, then Copy.',
     },
     openai: {
-      subscription: 'A ChatGPT Plus or Pro subscription isn’t an API key. Add $5 of credit at OpenAI first.',
+      subscription: 'A ChatGPT Plus or Pro subscription isn’t an API key. Add $5 of credit at OpenAI first, or pick ChatGPT plan to sign in with your plan.',
       creditStep: 'Add $5 of credit, OpenAI’s minimum.',
       createStep: 'Click Create new secret key, then Copy.',
     },
@@ -249,6 +266,10 @@ window.BonesStrings = {
       createStep: 'Click Create API key, then Copy.',
       creditLead: '{ai} needs an API key and billing set up at {co}.',
       extraLine: 'Google’s terms for its API say you must be 18 or older.',
+    },
+    chatgpt: {
+      signInBtn: 'Sign in with ChatGPT',
+      subscription: 'Uses your ChatGPT plan (Plus, Pro, Business and others) instead of an API key. Replies count toward your plan’s usage limits.',
     },
     custom: {},
   },
@@ -626,6 +647,11 @@ window.BonesStrings = {
     thinkingDayLine: '{level}: {dayCost} a day.', // the level's cost, under the track
     sessionOnlyLine: 'Your key is kept until you quit.',
     deleteKeyBtn: 'Delete key',
+    signInLabel: 'Sign-in',
+    signedInLine: 'Signed in with your {ai}',
+    testSignInBtn: 'Test sign-in',
+    signInAgainBtn: 'Sign in again',
+    signOutBtn: 'Sign out',
     safetyIdLabel: 'OpenAI safety ID',
     replaceIdBtn: 'Replace ID',
     safetyIdDoneLine: 'OpenAI gets the new ID now.',
@@ -649,6 +675,7 @@ window.BonesStrings = {
     offLine: 'Your daily limit is off.',
     badAmountLine: 'Type an amount from $0.01 to $100.',
     localLine: 'A model on this computer costs nothing.',
+    planLine: 'Your plan has no charge per reply.', // a plan that signs in (ChatGPT plan): its limits are the plan's, not dollars
     backToSetupBtn: 'Back to setup',
   },
 
@@ -875,6 +902,7 @@ window.BonesStrings = {
     dayLine: 'about ${range} a day at {n} replies',
     free: 'No charge · up to {n} requests a day (the service’s limit)',
     local: 'Free · runs on this computer',
+    plan: 'Included in your plan · counts toward its usage limits',
   },
 
   // A call's failure where no result of its own says it, by the call's error code.

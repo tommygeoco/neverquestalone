@@ -60,7 +60,14 @@ export function responsesRequest(manifest, req, { authHeaders = {}, requestOptio
   }
   if (manifest.safetyIdentifier && req.safetyId) body.safety_identifier = String(req.safetyId);
   else delete body.safety_identifier;
-  return target(manifest, path || manifest.paths.chat, authHeaders, body);
+  // A chat's cache key (manifest cacheKey: the ChatGPT plan's Codex backend reuses a chat's prompt
+  // only when its requests name the same session): a header and the body's prompt_cache_key.
+  const ck = manifest.cacheKey && typeof req.cacheKey === 'string' && req.cacheKey ? req.cacheKey : null;
+  if (ck) body.prompt_cache_key = ck;
+  else delete body.prompt_cache_key;
+  const t = target(manifest, path || manifest.paths.chat, authHeaders, body);
+  if (ck) t.headers[manifest.cacheKey.header] = ck;
+  return t;
 }
 
 export function responsesUsage(u = {}) {
@@ -213,6 +220,12 @@ export async function* chatParse(res, ctx) {
 
 // Gemini's OpenAI-compatible list names its models "models/gemini-…"; requests take the bare id.
 export function modelsPage(json) {
+  // OpenAI-style {data: [{id}]}; the ChatGPT plan's Codex backend lists {models: [{slug, visibility}]},
+  // its hidden ones (internal reviewers, reserves) left out.
+  if (!Array.isArray(json?.data) && Array.isArray(json?.models)) {
+    const ids = json.models.filter(m => m?.visibility !== 'hide').map(m => m?.slug).filter(x => typeof x === 'string');
+    return { ids, next: null };
+  }
   const ids = Array.isArray(json?.data) ? json.data.map(m => m?.id).filter(x => typeof x === 'string').map(id => id.replace(/^models\//, '')) : [];
   return { ids, next: null };
 }

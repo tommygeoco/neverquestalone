@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "id": "chatgpt",
+  "name": "ChatGPT",
+  "order": 25,
+  "hidden": false,
+  "local": false,
+  "adapter": "openai-responses",
+  "baseUrl": "https://chatgpt.com/backend-api/codex",
+  "hosts": ["chatgpt.com", "auth.openai.com"],
+  "auth": { "header": "authorization", "scheme": "Bearer", "signIn": "chatgpt" },
+  "headers": { "originator": "neverquestalone" },
+  "cacheKey": { "header": "session_id" },
+  "keyPattern": null,
+  "keyRejectPattern": null,
+  "keyMatchOrder": 100,
+  "keyExample": null,
+  "requestIdHeader": "x-request-id",
+  "paths": { "chat": "/responses", "models": "/models?client_version=1.0.0" },
+  "keyCheck": null,
+  "models": {
+    "default": "gpt-6-luna",
+    "smarter": "gpt-6-astra",
+    "allowAny": false,
+    "list": [
+      { "id": "gpt-6-luna", "label": "GPT-6 Luna", "costRank": 1, "effort": true, "contextTokens": 272000, "outputTokens": 128000,
+        "source": "The Codex backend's model list for a ChatGPT Plus account (https://chatgpt.com/backend-api/codex/models, read 2026-11-09): reasoning low, medium, high, xhigh, max; 272,000 context. Replies in about 1.5 s at low." },
+      { "id": "gpt-6-astra", "label": "GPT-6 Astra", "costRank": 6, "effort": true, "contextTokens": 272000, "outputTokens": 128000,
+        "source": "The Codex backend's model list (https://chatgpt.com/backend-api/codex/models, read 2026-11-09): reasoning low to max (ultra too, not offered here); 272,000 context." },
+      { "id": "gpt-6.1-sol", "label": "GPT-6.1 Sol", "costRank": 3, "effort": true, "contextTokens": 500000, "outputTokens": 128000,
+        "source": "The Codex backend's model list (https://chatgpt.com/backend-api/codex/models, read 2026-11-09): reasoning low to max; 500,000 context." },
+      { "id": "gpt-5.6-luna", "label": "GPT-5.6 Luna", "costRank": 2, "effort": true, "contextTokens": 272000, "outputTokens": 128000,
+        "source": "The Codex backend's model list (https://chatgpt.com/backend-api/codex/models, read 2026-11-09): reasoning low, medium, high, xhigh, max; 272,000 context." }
+    ]
+  },
+  "effort": {
+    "gpt-6-luna": {
+      "low": { "reasoning": { "effort": "low" } },
+      "medium": { "reasoning": { "effort": "medium" } },
+      "high": { "reasoning": { "effort": "high" } },
+      "xhigh": { "reasoning": { "effort": "xhigh" } },
+      "max": { "reasoning": { "effort": "max" } }
+    },
+    "gpt-6-astra": {
+      "low": { "reasoning": { "effort": "low" } },
+      "medium": { "reasoning": { "effort": "medium" } },
+      "high": { "reasoning": { "effort": "high" } },
+      "xhigh": { "reasoning": { "effort": "xhigh" } },
+      "max": { "reasoning": { "effort": "max" } }
+    },
+    "gpt-6.1-sol": {
+      "low": { "reasoning": { "effort": "low" } },
+      "medium": { "reasoning": { "effort": "medium" } },
+      "high": { "reasoning": { "effort": "high" } },
+      "xhigh": { "reasoning": { "effort": "xhigh" } },
+      "max": { "reasoning": { "effort": "max" } }
+    },
+    "gpt-5.6-luna": {
+      "low": { "reasoning": { "effort": "low" } },
+      "medium": { "reasoning": { "effort": "medium" } },
+      "high": { "reasoning": { "effort": "high" } },
+      "xhigh": { "reasoning": { "effort": "xhigh" } },
+      "max": { "reasoning": { "effort": "max" } }
+    }
+  },
+  "rateLimitHeaders": null,
+  "errorMap": {
+    "codes": {
+      "usage_limit_reached": "rate_limited",
+      "rate_limit_exceeded": "rate_limited",
+      "context_length_exceeded": "context_too_long",
+      "model_not_found": "model_not_found",
+      "server_is_overloaded": "overloaded"
+    },
+    "types": {
+      "usage_limit_reached": "rate_limited",
+      "rate_limit_error": "rate_limited",
+      "server_error": "overloaded",
+      "invalid_request_error": "bad_request"
+    },
+    "status": {},
+    "notes": "A ChatGPT plan has usage windows, not credit: a 429 usage_limit_reached is the plan's 5-hour or weekly window (x-codex-primary-* and x-codex-secondary-* headers carry used-percent and reset-after-seconds). A 401 (detail: 'Could not parse your authentication token') is an access token that's gone: oauth_expired."
+  },
+  "privacy": {
+    "class": "cloud",
+    "retention": "ChatGPT's own, as set in the player's ChatGPT data controls; store:false sent",
+    "trains": "Per the player's ChatGPT setting (Improve the model for everyone)",
+    "zdr": "No",
+    "sets": "store:false always",
+    "notes": "Requests run under the player's ChatGPT account and plan, as Codex's do; the ChatGPT Terms of Use and the account's data controls apply.",
+    "player": {
+      "short": "Follows your ChatGPT data controls; uses your plan’s limits.",
+      "keeps": "What ChatGPT keeps for your account. You can check it in ChatGPT’s data controls.",
+      "trains": "Only if Improve the model for everyone is on in your ChatGPT settings.",
+      "zeroRetention": "",
+      "sets": "Asks OpenAI not to store the replies."
+    },
+    "sources": []
+  },
+  "terms": {
+    "login": "Sign in with ChatGPT (OAuth with PKCE, Codex's public client id). OpenAI supports ChatGPT-plan sign-in in third-party tools; usage counts against the plan's Codex limits.",
+    "notes": [
+      "The access token stays in memory; the key store keeps the account id and refresh token only.",
+      "The Codex backend needs the chatgpt-account-id header and a client_version on its model list."
+    ],
+    "playerNotes": [
+      "Uses your ChatGPT plan instead of an API key, with no charge per reply.",
+      "Replies count toward your plan’s usage limits, which reset every few hours."
+    ],
+    "sources": []
+  },
+  "defaultRequestOptions": { "store": false },
+  "safetyIdentifier": false,
+  "limits": { "maxOutputTokens": 1200, "testMaxTokens": 16 },
+  "priceSource": "free",
+  "display": {
+    "card": "ChatGPT plan",
+    "maker": "OpenAI",
+    "order": 25,
+    "termsVersion": 1
+  },
+  "links": {
+    "terms": "https://openai.com/policies/terms-of-use/",
+    "privacy": "https://openai.com/policies/privacy-policy/",
+    "plans": "https://chatgpt.com/pricing",
+    "usage": "https://chatgpt.com/codex/settings/usage",
+    "verified": false
+  },
+  "sources": []
+}

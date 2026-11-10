@@ -379,3 +379,34 @@ test('the model check runs again on a model or key change, and a model_not_found
     assert.equal(chatCalls(mock).at(-1).body.model, 'claude-haiku-4-5');
   } finally { await env.backend.stop(); await mock.close(); }
 });
+
+// ------------------------------------------------------------------------------- the ChatGPT plan
+
+test('the ChatGPT plan: each chat\'s turns name one session (session_id, prompt_cache_key), another chat another; the key names neither the chat nor the install', async () => {
+  const sse = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1')), '..', 'fixtures', 'byok', 'providers', 'openai', 'success.sse'), 'utf8');
+  const mock = await startMock(() => ({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: sse }));
+  const signIns = { for: m => (m?.auth?.signIn ? { credentials: async () => ({ key: 'eyJ.test.token', kind: 'oauth', headers: { 'chatgpt-account-id': 'acct-1' } }) } : null) };
+  const env = await started({ url: mock.url, manifests: manifestsAt(mock.url, ['chatgpt']), keystore: await canaryKeystore([]), config: { provider: 'chatgpt', auth: 'oauth' }, signIns });
+  try {
+    await env.backend.send(sendParams(CHAT, 'p_1', 'one'));
+    await waitFor(() => env.chats('final').length === 1, 5000, 'first');
+    await env.backend.send(sendParams(CHAT, 'p_2', 'two'));
+    await waitFor(() => env.chats('final').length === 2, 5000, 'second');
+    await env.backend.send(sendParams(CHAT2, 'p_3', 'three'));
+    await waitFor(() => env.chats('final').length === 3, 5000, 'third');
+    const calls = chatCalls(mock);
+    assert.equal(calls.length, 3);
+    const keys = calls.map(r => r.body.prompt_cache_key);
+    assert.match(keys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.equal(keys[0], keys[1], 'one chat, one key');
+    assert.notEqual(keys[0], keys[2], 'another chat, another key');
+    for (const r of calls) {
+      assert.equal(r.headers.session_id, r.body.prompt_cache_key, 'the header and the body agree');
+      assert.equal(r.headers['chatgpt-account-id'], 'acct-1');
+      assert.equal(r.headers.authorization, 'Bearer eyJ.test.token');
+    }
+    const sid = JSON.parse(fs.readFileSync(path.join(env.dataDir, 'byok-chats.json'), 'utf8')).safetyId;
+    for (const k of keys) for (const leak of [CHAT, CHAT2, sid, sid.replace(/-/g, '')]) assert.ok(!k.includes(leak), 'a hash, not the ids');
+    assert.equal(calls[0].body.safety_identifier, undefined, 'the plan gets no safety identifier');
+  } finally { await env.backend.stop(); await mock.close(); }
+});

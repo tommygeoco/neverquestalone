@@ -1134,6 +1134,18 @@ test('Spending (Your AI’s group, spec §6.4): today’s spend; the daily spend
   assert.match(lu.pageText(), /A model on this computer costs nothing\./);
   assert.equal(lu.document.getElementById('cap-dailyUsd'), null);
   assert.equal(lu.byText('Set a limit').length, 0);
+  // A ChatGPT plan, signed in: its sign-in row in place of a key's, and no dollar limit (a reply costs nothing).
+  const keys = { chatgpt: { masked: null, state: 'ok', signedIn: true } };
+  const pu = await pageRig({ state: { keys, choice: { provider: 'chatgpt', model: 'gpt-6-luna', effort: 'low' }, terms: { chatgpt: 1 }, addonInstalled: true }, hash: 'usage' });
+  const pt = pu.pageText();
+  assert.match(pt, /Signed in with your ChatGPT plan/);
+  for (const b of ['Test sign-in', 'Sign in again', 'Sign out']) assert.ok(pu.byText(b).length, b);
+  assert.equal(pu.byText('Replace key').length, 0, 'no key to replace');
+  assert.match(pt, /Your plan has no charge per reply\./);
+  assert.equal(pu.document.getElementById('cap-dailyUsd'), null);
+  assert.equal(pu.byText('Set a limit').length, 0);
+  await pu.press(fk(pu, 'details'));
+  assert.equal(pu.document.querySelector('#sheet-host [data-fk="open-limits"]'), null, 'no limits page to open: a plan has none');
 });
 
 test('no limits of ours in the window (owner, 2026-09-26): no message counts to stop at; setup never reads or saves a limit', async () => {

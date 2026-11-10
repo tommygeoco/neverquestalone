@@ -218,6 +218,7 @@ function shippedFiles() {
 const LOCAL_ONLY = Object.freeze({
   'bridge/transport/capture.mjs': ['node:net', 'the capture helper\'s local socket (a Unix socket in the app\'s own folder)'],
   'app/desktop/src/capture-gate.mjs': ['node:net', 'the packaged self-test\'s check of the capture helper (code health BR-01): a Unix socket in a temp folder of its own, only under --self-test'],
+  'bridge/byok/signin/chatgpt.mjs': ['node:http', 'Sign in with ChatGPT\'s redirect: a listener on 127.0.0.1 only (ports 1455, 1457), one GET with the state it sent, open only while a sign-in waits; the token requests go through the guarded fetch'],
   'app/desktop/src/extra-ca.mjs': ['node:tls', 'the packaged self-test\'s count of the certificates NODE_EXTRA_CA_CERTS added (SR-05): tls.getCACertificates(\'extra\'), a list read, never a connection, only under --self-test'],
 });
 

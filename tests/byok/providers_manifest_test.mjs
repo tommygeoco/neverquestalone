@@ -15,13 +15,14 @@ import { loadManifests, validateManifest, pickProviderForKey, getManifest, resol
 import { hasEffortControl, effortFragment, withQuery, effortLevels, nearestEffort, EFFORT_LEVELS, THINK_ROOM } from '../../bridge/byok/providers/util.mjs';
 import { CANARY, serveOne, fixture, mockProvider, collect, req } from './helpers/mock-provider.mjs';
 
-// The four AIs a key comes from; custom.json is Other's template (no base URL until the player sets one).
-const IDS = ['anthropic', 'openai', 'xai', 'google'];
+// The four AIs a key comes from, and the ChatGPT plan, which signs in; custom.json is Other's template
+// (no base URL until the player sets one).
+const IDS = ['anthropic', 'openai', 'chatgpt', 'xai', 'google'];
 // URLs with a user part are built with AT: the scrub scanner reads user@host as an email address,
 // and these files go out with the public tree (security review SR-02).
 const AT = '@';
 
-test('the five manifests load (four AIs and Other\'s template), pass the schema and are frozen', () => {
+test('the six manifests load (four keyed AIs, the ChatGPT plan and Other\'s template), pass the schema and are frozen', () => {
   const ms = loadManifests();
   assert.deepEqual([...ms.map(m => m.id)].sort(), [...IDS, 'custom'].sort());
   for (const m of ms) {
@@ -31,16 +32,16 @@ test('the five manifests load (four AIs and Other\'s template), pass the schema 
   }
 });
 
-test('setup offers exactly five, in order: Claude, ChatGPT, Grok, Gemini, Other; OpenRouter, Ollama and LM Studio are no AIs of their own', () => {
+test('setup offers exactly six, in order: Claude, ChatGPT, ChatGPT plan, Grok, Gemini, Other; OpenRouter, Ollama and LM Studio are no AIs of their own', () => {
   const cards = loadManifests().filter(m => !m.hidden && m.display?.card).sort((a, b) => a.display.order - b.display.order);
-  assert.deepEqual(cards.map(m => m.display.card), ['Claude', 'ChatGPT', 'Grok', 'Gemini', 'Other']);
+  assert.deepEqual(cards.map(m => m.display.card), ['Claude', 'ChatGPT', 'ChatGPT plan', 'Grok', 'Gemini', 'Other']);
   for (const id of ['openrouter', 'ollama', 'lmstudio']) assert.equal(getManifest(id), null, id);
   assert.equal(Object.hasOwn(ADAPTERS, 'ollama'), false, 'Ollama is reached through its OpenAI-compatible address');
   assert.equal(Object.hasOwn(ADAPTERS, 'gemini'), false, 'Gemini is reached through its OpenAI-compatible address');
 });
 
 test('adapters per §7.1: Messages, Responses (OpenAI, xAI), Chat Completions (Gemini, Other, xAI fallback)', () => {
-  const want = { anthropic: 'anthropic-messages', openai: 'openai-responses', xai: 'openai-responses', google: 'openai-chat', custom: 'openai-chat' };
+  const want = { anthropic: 'anthropic-messages', openai: 'openai-responses', chatgpt: 'openai-responses', xai: 'openai-responses', google: 'openai-chat', custom: 'openai-chat' };
   for (const [id, a] of Object.entries(want)) assert.equal(getManifest(id).adapter, a, id);
   assert.equal(getManifest('xai').altAdapter, 'openai-chat');
 });
@@ -94,6 +95,8 @@ test('defaults (fix-102): each AI\'s newest mid-tier model, and its whole curren
   // default is its top model.
   assert.deepEqual(d('anthropic'), ['claude-sonnet-5-5', 'claude-opus-5-5']);
   assert.deepEqual(d('openai'), ['gpt-6.1-sol', 'gpt-6-astra']);
+  // The ChatGPT plan's default is its fastest (the reply's 1.5 s at low), its smarter the top model.
+  assert.deepEqual(d('chatgpt'), ['gpt-6-luna', 'gpt-6-astra']);
   assert.deepEqual(d('xai'), ['grok-4.7', null]);
   assert.deepEqual(d('google'), ['gemini-3.8-flash', 'gemini-3.1-pro-preview']);
   assert.equal(getManifest('custom').models.default, null, 'Other\'s model is the player\'s');
@@ -107,7 +110,7 @@ test('defaults (fix-102): each AI\'s newest mid-tier model, and its whole curren
     assert.equal(list[0].id, getManifest(id).models.default, `${id}: the default comes first`);
     for (const e of list) {
       assert.match(e.source ?? '', /https:\/\/\S+/, `${id} ${e.id}: where its facts come from`);
-      assert.match(e.source, /2026-09-(24|30)/, `${id} ${e.id}: when they were read`);
+      assert.match(e.source, id === 'chatgpt' ? /2026-11-09/ : /2026-09-(24|30)/, `${id} ${e.id}: when they were read`);
     }
   }
   // Older models stay selectable: every model 1.0.1 offered is still listed, so a saved choice keeps working.
@@ -418,7 +421,9 @@ test('provider ids live in the manifests alone (SY-14): the desktop app derives 
     if (url.includes('{hash}')) assert.equal(LINKS[id], undefined, `${id} is filled in main from a checked hash`);
     else assert.equal(LINKS[id], url, id);
   }
-  for (const m of visible.filter(x => !x.local && !x.custom)) for (const k of ['keys', 'billing', 'limits', 'privacy', 'terms']) assert.ok(m.links[k], `${m.id}.${k}`);
+  for (const m of visible.filter(x => !x.local && !x.custom && !x.auth?.signIn)) for (const k of ['keys', 'billing', 'limits', 'privacy', 'terms']) assert.ok(m.links[k], `${m.id}.${k}`);
+  // A plan that signs in has no key or billing page: its plans, its usage, its privacy and terms.
+  for (const m of visible.filter(x => x.auth?.signIn)) for (const k of ['plans', 'usage', 'privacy', 'terms']) assert.ok(m.links[k], `${m.id}.${k}`);
   assert.deepEqual(Object.keys(getManifest('custom').links), ['verified'], 'Other\'s service has no pages the app knows');
   // No other hand-kept list of the AIs in what ships (the mock and its screenshots are development only).
   const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'); // a URL's pathname isn't a Windows path

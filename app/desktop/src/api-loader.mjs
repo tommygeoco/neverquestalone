@@ -68,7 +68,7 @@ export const API_METHODS = Object.freeze([
   'setPaused', 'resumeSending', 'uninstall', 'setRetention', 'retentionPreview', 'regenerateSafetyId',
   // Setup (onboarding spec §9.3): terms, connect, the saved key, the install (now or when WoW
   // closes), the launcher, Screen Recording.
-  'recordTerms', 'connect', 'useSavedKey', 'setupInstall', 'armInstall', 'cancelInstall', 'launcher',
+  'recordTerms', 'connect', 'useSavedKey', 'signIn', 'cancelSignIn', 'setupInstall', 'armInstall', 'cancelInstall', 'launcher',
   'requestScreenPermission', 'screenPermission',
 ]);
 

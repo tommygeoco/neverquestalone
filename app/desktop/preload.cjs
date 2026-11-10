@@ -24,7 +24,7 @@ const CALLS = [
   'uninstall',
   // Setup (onboarding spec §3): Paste key and its dialog, the saved key, Continue on the defaults,
   // the install, Screen Recording, the launcher, the move.
-  'pasteKey', 'connectKey', 'retryConnect', 'useSavedKey', 'finishDefaults', 'cancelInstall', 'requestScreenRecording',
+  'pasteKey', 'connectKey', 'retryConnect', 'useSavedKey', 'signIn', 'cancelSignIn', 'finishDefaults', 'cancelInstall', 'requestScreenRecording',
   'openGame', 'moveToApplications',
 ];
 

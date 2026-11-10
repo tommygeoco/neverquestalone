@@ -21,6 +21,7 @@ The addon runs inside World of Warcraft, under the game’s own rules for addons
 - Keys go into the app, never into the game. They’re saved where the system keeps passwords: the macOS Keychain, Windows Credential Manager, or the Secret Service on Linux.
 - Windows Credential Manager and Linux’s Secret Service don’t keep apps apart, so `keychainService` in `identity.json` is all that keeps two apps built from this code from reading each other’s keys. Never reuse NeverQuestAlone’s.
 - A key is sent only to its own AI company, and taken out of logs and diagnostics.
+- A ChatGPT plan signs in instead (`bridge/byok/signin/chatgpt.mjs`): OAuth with PKCE on OpenAI’s own page in the player’s browser, the redirect caught by a listener on 127.0.0.1 only, open only while a sign-in waits, that takes one request with the state it sent. Main opens OpenAI’s authorize page and nothing else. The key store keeps the account ID and the refresh token (rotated by OpenAI on each renewal, the new one saved before it’s used); the access token stays in memory. Every token is registered with the log’s redactor, and the account header is hidden in Last request.
 
 ## The network
 

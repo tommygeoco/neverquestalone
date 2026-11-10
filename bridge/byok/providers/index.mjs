@@ -4,7 +4,8 @@
 // place provider ids, names, key shapes, hosts and links live (providerIds,
 // providerLinks); a change to one ships with an app update.
 //
-// Setup offers five: Claude, ChatGPT, Grok, Gemini, and Other (custom.json, a template: any
+// Setup offers six: Claude, ChatGPT, ChatGPT plan (chatgpt.json: signs in with the player's ChatGPT
+// account instead of a key, auth.signIn, bridge/byok/signin), Grok, Gemini, and Other (custom.json, a template: any
 // OpenAI-compatible Chat Completions service at the player's own base URL, its key optional for a
 // server on this computer). The template becomes a manifest only with the player's settings
 // (customManifest; byok.custom {baseUrl, model}), and its one host is the only one it adds to the
@@ -65,6 +66,10 @@ export const DEFAULT_TIMEOUTS = Object.freeze({ firstTokenMs: 60000, idleMs: 300
 const MANIFEST_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'manifests');
 const PRIVACY_CLASSES = ['cloud', 'cloud-no-train', 'local'];
 const LOOPBACK = new Set(['127.0.0.1', '[::1]', '::1']);
+/** The sign-in flows a manifest's auth.signIn may name (bridge/byok/signin/<flow>.mjs). */
+export const SIGN_INS = Object.freeze(['chatgpt']);
+/** Does this manifest sign in (a plan) rather than take a pasted key? */
+export const isSignIn = m => typeof m?.auth?.signIn === 'string';
 /** The Other card's id: the one manifest whose base URL and model are the player's (custom.json). */
 export const CUSTOM_ID = 'custom';
 /** Hosts a custom base URL may reach over plain http: this computer only (Ollama, LM Studio). */
@@ -226,12 +231,19 @@ export function validateManifest(m) {
     need(Array.isArray(m.hosts) && m.hosts.length > 0 && m.hosts.includes(host), 'hosts must list the baseUrl host');
     if (m.local) need(m.auth === null, 'a local provider has no auth');
     else need(isObj(m.auth) && typeof m.auth.header === 'string' && (m.auth.scheme === null || m.auth.scheme === 'Bearer') && m.auth.optional == null, 'auth needs a header and a null or Bearer scheme');
-    if (m.local) need(m.keyPattern === null, 'a local provider has no key pattern');
+    if (m.auth?.signIn != null) {
+      // A sign-in provider (a plan in place of a key: signIn names the flow, signin/<flow>.mjs): no
+      // pasted key ever routes to it, and its token goes only to its own hosts over https.
+      need(SIGN_INS.includes(m.auth.signIn), `unknown sign-in ${m.auth.signIn}`);
+      need(!m.local && m.keyPattern === null && m.keyRejectPattern == null, 'a sign-in provider is a cloud one with no key shape');
+    } else if (m.local) need(m.keyPattern === null, 'a local provider has no key pattern');
     else need(typeof m.keyPattern === 'string' && compiles(m.keyPattern), 'keyPattern must be a regex source');
   }
   if (m.keyRejectPattern != null) need(typeof m.keyRejectPattern === 'string' && compiles(m.keyRejectPattern), 'keyRejectPattern must be a regex source');
   need(Number.isInteger(m.keyMatchOrder), 'keyMatchOrder must be an integer');
   need(isObj(m.headers), 'headers must be an object');
+  // A chat's cache key, sent in this header and as the body's prompt_cache_key (Responses only).
+  if (m.cacheKey != null) need(isObj(m.cacheKey) && typeof m.cacheKey.header === 'string' && /^[a-z][a-z0-9_-]*$/.test(m.cacheKey.header) && m.adapter === 'openai-responses', 'cacheKey needs a lowercase header name, on the Responses adapter');
   need(isObj(m.paths) && typeof m.paths.chat === 'string' && typeof m.paths.models === 'string', 'paths needs chat and models');
   if (m.keyCheck != null) need(isObj(m.keyCheck) && typeof m.keyCheck.path === 'string', 'keyCheck needs a path');
   const models = m.models;
@@ -561,7 +573,7 @@ export function resolveModel(manifest, available, wanted) {
 
 // Header names that carry a credential whatever the manifest says (a workspace header added by the
 // app, a proxy's token): their values are replaced whole.
-const SECRET_HEADER_RE = /^(authorization|proxy-authorization|x-api-key|api-key|x-goog-api-key|cookie)$|token|secret|key$/i;
+const SECRET_HEADER_RE = /^(authorization|proxy-authorization|x-api-key|api-key|x-goog-api-key|cookie)$|token|secret|key$|account-id$/i;
 
 /**
  * The request's headers as the "Last request" view shows them (§8.4 item 3, KY-8): the provider's
@@ -658,14 +670,25 @@ export function createProvider(manifest, opts = {}) {
   async function credentials() {
     if (!manifest.auth) return { key: null, kind: 'local', headers: {} };
     let got;
-    try { got = await getKey(id); } catch { return { error: noKey('keystore_error') }; }
+    try { got = await getKey(id); } catch (e) {
+      // A sign-in renews its token over the network: a renewal that couldn't reach OpenAI, or that
+      // got a server error, is that, never a broken key store.
+      if (isSignIn(manifest) && e?.code !== 'keystore_error') {
+        return { error: Number.isInteger(e?.status) && e.status > 0 ? classify(manifest, { status: e.status, now: now() }) : classify(manifest, { networkPhase: fetchErrorPhase(e), networkError: e }) };
+      }
+      return { error: noKey('keystore_error') };
+    }
+    // A sign-in OpenAI (or another) refused to renew: ended, so "Sign in again", never "no key".
+    if (got && typeof got === 'object' && got.expired === true) return { error: makeError({ kind: 'oauth_expired', provider: id, code: 'refresh_refused', retryable: false }) };
     const key = typeof got === 'string' ? got : got?.key;
     // Other (custom) may run with no key: a server on this computer takes none.
     if (!key && manifest.auth.optional === true) return { key: null, kind: 'none', headers: {} };
     if (!key) return { error: noKey('missing_key') };
     const kind = typeof got === 'object' && got?.kind === 'oauth' ? 'oauth' : 'key';
     const { header, scheme } = manifest.auth;
-    return { key, kind, headers: { [header]: scheme ? `${scheme} ${key}` : key } };
+    // A sign-in's own headers (ChatGPT's account id) go with its token, and only on its requests.
+    const own = typeof got === 'object' && isObj(got?.headers) ? got.headers : {};
+    return { key, kind, headers: { ...own, [header]: scheme ? `${scheme} ${key}` : key } };
   }
 
   function logError(err, model) {

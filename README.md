@@ -2,7 +2,7 @@
 
 <img src="images/icon.png" alt="" width="96" align="right">
 
-**Always know where to go next.** NeverQuestAlone is a free, open-source quest companion for World of Warcraft®: Forever. It sits by your quest tracker, plans your quests and redraws your route on the map as you play. It runs on the AI you pick: Claude, ChatGPT, Grok or Gemini with your own API key, another OpenAI-compatible service, or a model on your own computer.
+**Always know where to go next.** NeverQuestAlone is a free, open-source quest companion for World of Warcraft®: Forever. It sits by your quest tracker, plans your quests and redraws your route on the map as you play. It runs on the AI you pick: Claude, ChatGPT, Grok or Gemini with your own API key, your ChatGPT plan (Plus, Pro and others) by signing in, another OpenAI-compatible service, or a model on your own computer.
 
 **[Download for Mac](https://github.com/tommygeoco/neverquestalone/releases/latest/download/NeverQuestAlone-mac.dmg)** · **[Download for Windows](https://github.com/tommygeoco/neverquestalone/releases/latest/download/NeverQuestAlone-Setup.exe)** · [All downloads](https://github.com/tommygeoco/neverquestalone/releases/latest)
 
@@ -28,11 +28,11 @@
 
 ## Set up in three steps
 
-It takes 2–3 minutes once you have an API key. You need:
+It takes 2–3 minutes once you have an API key or a ChatGPT plan. You need:
 
 - **World of Warcraft: Forever**, in Windowed or Windowed (Fullscreen) mode, with Enable Sound on in its sound settings.
 - **macOS 14 or later, or Windows 10 or 11.**
-- **An API key** for the AI you want, with a few dollars of credit. [What’s an API key?](#whats-an-api-key)
+- **An API key** for the AI you want, with a few dollars of credit ([What’s an API key?](#whats-an-api-key)), **or a ChatGPT plan** to sign in with.
 
 ### 1 Download
 
@@ -51,6 +51,8 @@ Download NeverQuestAlone for [Mac](https://github.com/tommygeoco/neverquestalone
 4. Click **Continue**.
 
 The buttons name the company behind the AI you picked: Anthropic for Claude, OpenAI for ChatGPT, xAI for Grok and Google for Gemini.
+
+Have a ChatGPT plan (Plus, Pro, Business and others)? Pick **ChatGPT plan**, click **Sign in with ChatGPT**, then **Agree and sign in**. Your browser opens OpenAI’s sign-in page; sign in there and come back. No API key and no credit needed: replies count toward your plan’s usage limits instead.
 
 Using another service, or a model on your own computer? Pick **Other**, click **Connect another AI**, fill in its address (Base URL), key and model, and click **Connect**.
 
@@ -73,6 +75,7 @@ The app is free, and NeverQuestAlone sets no limits of its own. You pay your AI 
 | AI | What you need | Cost |
 |---|---|---|
 | **Claude, ChatGPT, Grok or Gemini** | An API key from Anthropic, OpenAI, xAI or Google, with a few dollars of credit | Pay as you go (example below) |
+| **ChatGPT plan** | A ChatGPT plan (Plus, Pro, Business and others), signed in from the app | No charge per reply. Replies count toward your plan’s usage limits, which reset every few hours |
 | **Other: an OpenAI-compatible service** | Its address, a key if it takes one, and a model’s name (OpenRouter, Groq, Together and others) | That service’s prices |
 | **Other: a model on your computer** | Ollama (`http://localhost:11434/v1`) or LM Studio (`http://localhost:1234/v1`) with a model downloaded | Free. What you ask stays on your computer. The model shares your graphics card with the game |
 | **Other: a model on your home network** | Ollama or LM Studio on another computer at home, by its address (like `http://192.168.1.20:11434/v1`) | Free. What you ask goes only to that computer |
@@ -81,7 +84,7 @@ The app is free, and NeverQuestAlone sets no limits of its own. You pay your AI 
 
 On Claude Sonnet 5.5, Claude’s default, 40 replies a day cost about $0.76–1.22, so $5 of credit lasts 4 to 7 days. That’s about 1.9–3.0¢ a reply. The app shows your real figures.
 
-**A Claude, ChatGPT, Gemini or Grok subscription isn’t an API key.** Only API keys work.
+**A ChatGPT plan works by signing in** (pick ChatGPT plan). OpenAI supports signing in with a ChatGPT plan in other apps, as its Codex app does. **A Claude, Gemini or Grok subscription isn’t an API key** and can’t be used: those need an API key.
 
 **Set a spend limit at your AI company.** It’s what stops a runaway bill or a leaked key, and the app links to the right page. When you reach it, you get one line in game, like “You’ve reached the spend limit you set at Anthropic.”
 

@@ -62,6 +62,14 @@ const PROVIDERS = [
     privacyCard: { short: 'Keeps abuse logs up to 30 days; no training by default.', keeps: 'Abuse logs up to 30 days.', trains: 'No, unless your OpenAI organization turned on data sharing. You can check that in your OpenAI account.', zeroRetention: 'By OpenAI’s approval.', sets: 'Asks OpenAI to keep nothing beyond its abuse logs, and sends a random ID for this install.', link: 'openai.privacy', class: 'cloud-no-train' },
     terms: { link: 'openai.terms' },
   },
+  // A plan that signs in (chatgpt.json): no key, no price per reply.
+  {
+    id: 'chatgpt', name: 'ChatGPT', hidden: false, auth: 'signin', keyPrefixes: [],
+    models: manifestModels('chatgpt').map(m => ({ ...m, priceHint: { plan: true }, levelDays: undefined })),
+    notes: ['Uses your ChatGPT plan instead of an API key, with no charge per reply.', 'Replies count toward your plan’s usage limits, which reset every few hours.'],
+    privacyCard: { short: 'Follows your ChatGPT data controls; uses your plan’s limits.', keeps: 'What ChatGPT keeps for your account. You can check it in ChatGPT’s data controls.', trains: 'Only if Improve the model for everyone is on in your ChatGPT settings.', zeroRetention: '', sets: 'Asks OpenAI not to store the replies.', link: 'chatgpt.privacy', class: 'cloud' },
+    terms: { link: 'chatgpt.terms' },
+  },
   {
     id: 'xai', name: 'xAI', hidden: false, auth: 'key', keyPrefixes: ['xai-'],
     models: manifestModels('xai'),
@@ -440,6 +448,21 @@ export function createMockApi({ now = Date.now, platform = process.platform, del
       changed();
       return { ok: true, masked: k.masked, testCall: { ok: true, micros: 14 } };
     },
+    /** As app-api.mjs signIn: the browser flow, then one tiny test; the mock signs in at once. */
+    async signIn(provider) {
+      await wait(300);
+      await gate('signIn');
+      const f = forced('signIn');
+      if (f) return f;
+      const p = find(provider);
+      if (!p || p.auth !== 'signin') return { ok: false, error: 'bad_input', field: 'provider' };
+      if (!termsRecorded(provider)) return { ok: false, error: 'terms_required' };
+      s.keys.set(provider, { masked: null, state: 'ok', signedIn: true });
+      if (s.choice?.provider !== provider) s.choice = { provider, model: p.models[0].id, effort: p.models[0].effort ? 'low' : null };
+      changed();
+      return { ok: true, plan: 'plus', model: p.models[0].name, testCall: { ok: true, micros: 0 } };
+    },
+    async cancelSignIn() { return { ok: true }; },
     async deleteKey(provider) { s.keys.delete(provider); changed(); return { ok: true }; },
     /**
      * As app-api.mjs connectCustom: Other's service, tested with one tiny request and saved when it

@@ -65,6 +65,7 @@
     if (typeof hint === 'string') return clean(hint, 120);
     if (hint.free) return t('cost.free', { n: hint.perDay || 50 }, platform);
     if (hint.local) return t('cost.local', null, platform);
+    if (hint.plan) return t('cost.plan', null, platform);
     if (!hint.replyCents) return '';
     var rc = hint.replyCents;
     var parts = [t('cost.replyLine', { cents: range(rc[0], rc[1], centsText) }, platform)];
@@ -82,7 +83,7 @@
    */
   function dayCost(hint) {
     if (!hint || typeof hint !== 'object') return '';
-    if (hint.free || hint.local) return '$0';
+    if (hint.free || hint.local || hint.plan) return '$0';
     if (!Array.isArray(hint.dayUsd)) return '';
     return '$' + range(hint.dayUsd[0], hint.dayUsd[1], function (v) { return fixed(v, 2); });
   }
